@@ -161,22 +161,22 @@ const AnalysisResult: React.FC<AnalysisResultProps> = ({ result, onReset, isShar
             </div>
           
             <InfoCard title="Analysis" icon={<InfoIcon aria-hidden="true" className="w-6 h-6 mr-2 text-accent" />}>
-                <p className="text-secondary leading-normal">{result.analysis}</p>
+                <p className="text-text-light leading-normal">{result.analysis}</p>
             </InfoCard>
 
             {result.historicalContext && (
             <InfoCard title="Historical Context" icon={<HistoryIcon aria-hidden="true" className="w-6 h-6 mr-2 text-accent" />}>
-                <p className="text-secondary leading-normal text-sm">{result.historicalContext}</p>
+                <p className="text-text-light leading-normal text-sm">{result.historicalContext}</p>
             </InfoCard>
             )}
 
             <InfoCard title="Accessibility & Legibility" icon={<AccessibilityIcon aria-hidden="true" className="w-6 h-6 mr-2 text-accent" />}>
-                 <p className="text-secondary leading-normal mb-3">{result.accessibility.analysis}</p>
+                 <p className="text-text-light leading-normal mb-3">{result.accessibility.analysis}</p>
                  <ul className="space-y-2">
                     {result.accessibility.notes.map((note, index) => (
                         <li key={index} className="flex items-start">
                             <CheckIcon aria-hidden="true" className="w-5 h-5 mr-2 mt-0.5 text-accent flex-shrink-0" />
-                            <span className="text-secondary">{note}</span>
+                            <span className="text-text-light">{note}</span>
                         </li>
                     ))}
                  </ul>
@@ -189,14 +189,14 @@ const AnalysisResult: React.FC<AnalysisResultProps> = ({ result, onReset, isShar
                         const googleFontUrl = `https://fonts.google.com/specimen/${pairing.secondary.replace(/ /g, '+')}`;
                         return (
                             <div key={index} className="border-t border-border pt-4 first:pt-0 first:border-none">
-                                <div className="p-4 rounded-lg bg-background mb-3">
+                                <div className="p-4 rounded-lg bg-paper-light mb-3 border border-text-secondary/20">
                                      <a href={googleFontUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 group">
-                                        <h4 style={{fontFamily: `'${pairing.secondary}', sans-serif`}} className="text-3xl font-bold text-primary leading-tight group-hover:underline">{pairing.secondary}</h4>
+                                        <h4 style={{fontFamily: `'${pairing.secondary}', sans-serif`}} className="text-3xl font-bold text-text-dark leading-tight group-hover:underline">{pairing.secondary}</h4>
                                         <ExternalLinkIcon className="w-5 h-5 text-secondary/70 group-hover:text-accent transition-colors" />
                                     </a>
-                                    <p style={{fontFamily: `'${pairing.secondary}', sans-serif`}} className="text-base text-secondary mt-2">The quick brown fox jumps over the lazy dog.</p>
+                                    <p style={{fontFamily: `'${pairing.secondary}', sans-serif`}} className="text-base text-text-light mt-2">The quick brown fox jumps over the lazy dog.</p>
                                 </div>
-                                <p className="text-secondary text-sm leading-relaxed">{pairing.rationale}</p>
+                                <p className="text-text-light text-sm leading-relaxed">{pairing.rationale}</p>
                             </div>
                         )
                     })}
@@ -224,7 +224,7 @@ const AnalysisResult: React.FC<AnalysisResultProps> = ({ result, onReset, isShar
                                     )}
                                     <span className="text-xs text-secondary bg-surface px-2 py-1 rounded">{font.source}</span>
                                 </div>
-                                <p className="text-secondary text-sm leading-relaxed mt-1">{font.rationale}</p>
+                                <p className="text-text-light text-sm leading-relaxed mt-1">{font.rationale}</p>
                             </div>
                         )
                     })}
@@ -234,15 +234,15 @@ const AnalysisResult: React.FC<AnalysisResultProps> = ({ result, onReset, isShar
 
             <div className="grid md:grid-cols-2 gap-6">
                 <InfoCard title="Recommended Usage" icon={<UsageIcon aria-hidden="true" className="w-6 h-6 mr-2 text-accent" />}>
-                    <ul className="space-y-2">{result.usageRecommendations.map((rec, index) => (<li key={index} className="flex items-start"><CheckIcon aria-hidden="true" className="w-5 h-5 mr-2 mt-0.5 text-accent flex-shrink-0" /><span className="text-secondary">{rec}</span></li>))}</ul>
+                    <ul className="space-y-2">{result.usageRecommendations.map((rec, index) => (<li key={index} className="flex items-start"><CheckIcon aria-hidden="true" className="w-5 h-5 mr-2 mt-0.5 text-accent flex-shrink-0" /><span className="text-text-light">{rec}</span></li>))}</ul>
                 </InfoCard>
                 <InfoCard title="Weight Recommendations" icon={<WeightIcon aria-hidden="true" className="w-6 h-6 mr-2 text-accent" />}>
-                    <ul className="space-y-2">{result.weightRecommendations.map((rec, index) => (<li key={index} className="flex items-start"><CheckIcon aria-hidden="true" className="w-5 h-5 mr-2 mt-0.5 text-accent flex-shrink-0" /><span className="text-secondary">{rec}</span></li>))}</ul>
+                    <ul className="space-y-2">{result.weightRecommendations.map((rec, index) => (<li key={index} className="flex items-start"><CheckIcon aria-hidden="true" className="w-5 h-5 mr-2 mt-0.5 text-accent flex-shrink-0" /><span className="text-text-light">{rec}</span></li>))}</ul>
                 </InfoCard>
             </div>
-            
+
             {result.licenseInfo && (<InfoCard title="License & Usage Information" icon={<LicenseIcon aria-hidden="true" className="w-6 h-6 mr-2 text-accent" />}>
-                <p className="text-secondary leading-normal text-sm">{result.licenseInfo}</p>
+                <p className="text-text-light leading-normal text-sm">{result.licenseInfo}</p>
             </InfoCard>)}
 
             <InfoCard title="Business Suitability" icon={<BusinessIcon aria-hidden="true" className="w-6 h-6 mr-2 text-accent" />}>

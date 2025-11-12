@@ -91,20 +91,20 @@ const LicenseKeyScreen: React.FC<LicenseKeyScreenProps> = ({ onLicenseValidated 
                     <div className="flex justify-center mb-6">
                         <CadmusLogoIcon className="w-auto icon-embossed" style={{ height: '200px', color: '#8B7355' }} />
                     </div>
-                    <h1 className="text-3xl font-bold text-primary mb-2">FontPair AI</h1>
+                    <h1 className="text-3xl font-bold text-text-dark mb-2">FontPair AI</h1>
                     <p className="text-secondary text-sm">AI-Powered Font Pairing & Analysis Tool</p>
                 </div>
 
                 {/* License Key Form */}
                 <div className="bg-surface rounded-lg shadow-2xl p-8 border border-border">
-                    <h2 className="text-xl font-semibold text-primary mb-2">Enter License Key</h2>
+                    <h2 className="text-xl font-semibold text-text-dark mb-2">Enter License Key</h2>
                     <p className="text-sm text-secondary mb-6">
                         Please enter your license key to activate FontPair AI on this device.
                     </p>
 
                     <form onSubmit={handleSubmit} className="space-y-4">
                         <div>
-                            <label htmlFor="license-key" className="block text-sm font-medium text-primary mb-2">
+                            <label htmlFor="license-key" className="block text-sm font-medium text-text-dark mb-2">
                                 License Key
                             </label>
                             <input
@@ -114,7 +114,7 @@ const LicenseKeyScreen: React.FC<LicenseKeyScreenProps> = ({ onLicenseValidated 
                                 onChange={handleKeyChange}
                                 placeholder="XXXX-XXXX-XXXX-XXXX"
                                 disabled={isValidating}
-                                className="w-full px-4 py-3 bg-background border border-border rounded-md text-primary placeholder-secondary/50 focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed font-mono text-sm"
+                                className="w-full px-4 py-3 bg-background border border-border rounded-md text-text-dark placeholder-secondary/50 focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed font-mono text-sm"
                                 autoComplete="off"
                                 autoFocus
                             />
@@ -166,7 +166,7 @@ const LicenseKeyScreen: React.FC<LicenseKeyScreenProps> = ({ onLicenseValidated 
                     <div className="mt-6 pt-6 border-t border-border">
                         <div className="text-xs text-secondary/70 space-y-2">
                             <p>
-                                <strong className="text-primary">Don't have a license?</strong>
+                                <strong className="text-text-dark">Don't have a license?</strong>
                                 <br />
                                 <a
                                     href="https://fontpair.ai/purchase"
@@ -178,7 +178,7 @@ const LicenseKeyScreen: React.FC<LicenseKeyScreenProps> = ({ onLicenseValidated 
                                 </a>
                             </p>
                             <p>
-                                <strong className="text-primary">Lost your key?</strong>
+                                <strong className="text-text-dark">Lost your key?</strong>
                                 <br />
                                 Contact support at{' '}
                                 <a
