@@ -101,27 +101,20 @@ The app will now check for a valid license on startup.
 
 ## Testing the System
 
-### Using Test License Keys
+### Creating Test Licenses
 
-The SQL schema includes three test licenses:
+After running the SQL schema, create your own test licenses in Supabase:
 
-1. **Standard License** (3 devices)
-   - Key: ``
-   - Max devices: 3
-
-2. **Demo License** (1 device)
-   - Key: ``
-   - Max devices: 1
-
-3. **Premium License** (5 devices)
-   - Key: ``
-   - Max devices: 5
+1. Go to **Table Editor** > `licenses` table
+2. Click "Insert" > "Insert row"
+3. Create test licenses with your own keys (e.g., `YOUR-PREFIX-TEST-XXXX`)
+4. Set appropriate `max_devices` values for testing
 
 ### Testing Flow
 
 1. **First Launch**
    - App should show the License Key Screen
-   - Enter: ``
+   - Enter your test license key
    - Click "Activate License"
    - Should show success and redirect to main app
 
