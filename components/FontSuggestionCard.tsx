@@ -42,10 +42,10 @@ const FontSuggestionCard: React.FC<FontSuggestionCardProps> = ({ suggestion, onA
             {/* Header with font name and score */}
             <div className="flex items-start justify-between mb-4">
                 <div className="flex-1">
-                    <h3 className="text-lg font-semibold text-primary mb-1">
+                    <h3 className="text-lg font-semibold text-text-light mb-1">
                         {suggestion.fontName}
                     </h3>
-                    <p className="text-xs text-secondary uppercase tracking-wide">
+                    <p className="text-xs text-teal-light uppercase tracking-wide">
                         {suggestion.category}
                     </p>
                 </div>
@@ -53,14 +53,14 @@ const FontSuggestionCard: React.FC<FontSuggestionCardProps> = ({ suggestion, onA
                     <span className={`text-2xl font-bold ${getScoreColor(suggestion.matchScore)}`}>
                         {suggestion.matchScore}
                     </span>
-                    <span className="text-xs text-secondary">/10</span>
+                    <span className="text-xs text-teal-light">/10</span>
                 </div>
             </div>
 
             {/* Font Preview */}
-            <div className="bg-background rounded-md p-6 mb-4" style={{ minHeight: '120px' }}>
+            <div className="bg-paper-light rounded-md p-6 mb-4 border border-text-secondary/20" style={{ minHeight: '120px' }}>
                 <p
-                    className="text-primary text-3xl leading-relaxed"
+                    className="text-text-dark text-3xl leading-relaxed"
                     style={{
                         fontFamily: fontLoaded ? `'${suggestion.fontName}', sans-serif` : 'sans-serif',
                         opacity: fontLoaded ? 1 : 0.5
@@ -69,7 +69,7 @@ const FontSuggestionCard: React.FC<FontSuggestionCardProps> = ({ suggestion, onA
                     {suggestion.previewText || 'The quick brown fox jumps over the lazy dog'}
                 </p>
                 <p
-                    className="text-secondary text-sm mt-2"
+                    className="text-text-secondary text-sm mt-2"
                     style={{
                         fontFamily: fontLoaded ? `'${suggestion.fontName}', sans-serif` : 'sans-serif',
                         opacity: fontLoaded ? 1 : 0.5
@@ -81,20 +81,20 @@ const FontSuggestionCard: React.FC<FontSuggestionCardProps> = ({ suggestion, onA
 
             {/* Rationale */}
             <div className="mb-4">
-                <h4 className="text-sm font-medium text-primary mb-2">Why this font?</h4>
-                <p className="text-sm text-secondary leading-relaxed">
+                <h4 className="text-sm font-medium text-text-light mb-2">Why this font?</h4>
+                <p className="text-sm text-teal-light leading-relaxed">
                     {suggestion.rationale}
                 </p>
             </div>
 
             {/* Use Cases */}
             <div className="mb-4">
-                <h4 className="text-sm font-medium text-primary mb-2">Recommended for:</h4>
+                <h4 className="text-sm font-medium text-text-light mb-2">Recommended for:</h4>
                 <div className="flex flex-wrap gap-2">
                     {suggestion.useCases.map((useCase, index) => (
                         <span
                             key={index}
-                            className="px-2.5 py-1 bg-accent/10 text-accent text-xs rounded-md border border-accent/20"
+                            className="px-2.5 py-1 bg-accent/20 text-accent text-xs rounded-md border border-accent/30 font-medium"
                         >
                             {useCase}
                         </span>
@@ -103,10 +103,10 @@ const FontSuggestionCard: React.FC<FontSuggestionCardProps> = ({ suggestion, onA
             </div>
 
             {/* Actions */}
-            <div className="flex gap-3 pt-4 border-t border-border">
+            <div className="flex gap-3 pt-4 border-t border-teal-medium">
                 <button
                     onClick={() => onAnalyze(suggestion.fontName)}
-                    className="flex-1 px-4 py-2 bg-accent text-surface font-medium rounded-md hover:opacity-90 transition-opacity"
+                    className="flex-1 px-4 py-2 bg-accent text-text-light font-medium rounded-md hover:opacity-90 transition-opacity"
                 >
                     Analyze Font
                 </button>
@@ -114,7 +114,7 @@ const FontSuggestionCard: React.FC<FontSuggestionCardProps> = ({ suggestion, onA
                     href={`https://fonts.google.com/specimen/${suggestion.fontName.replace(/ /g, '+')}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex-1 px-4 py-2 bg-surface border border-accent text-accent font-medium rounded-md hover:bg-accent hover:text-surface transition-colors text-center"
+                    className="flex-1 px-4 py-2 bg-teal-medium border border-accent text-text-light font-medium rounded-md hover:bg-accent transition-colors text-center"
                 >
                     View on Google Fonts
                 </a>

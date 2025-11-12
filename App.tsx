@@ -337,33 +337,34 @@ const App: React.FC = () => {
             <p className="text-center text-lg text-light-secondary mb-8 max-w-4xl mx-auto">
               Upload a font file or an image of text in each column to get a side-by-side AI-powered analysis of the typefaces.
             </p>
-            <div data-tour="comparison-area" className="grid grid-cols-1 lg:grid-cols-2 lg:gap-8 w-full relative">
+            {/* Sticky Action Buttons - Always visible when both analyses are ready */}
+            {leftAnalysis && rightAnalysis && (
+                <div className="sticky top-4 z-20 flex justify-center gap-3 mb-6">
+                    <button
+                        onClick={handleCritique}
+                        disabled={isCritiquing}
+                        className="px-6 py-3 bg-accent text-text-light font-bold rounded-full hover:opacity-90 disabled:bg-secondary disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 transform hover:scale-105 shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:ring-accent flex items-center gap-2"
+                    >
+                        <SparklesIcon className={`w-5 h-5 ${isCritiquing ? 'animate-spin' : ''}`} />
+                        {isCritiquing ? 'Critiquing...' : 'Critique Pairing'}
+                    </button>
+                    <button
+                        onClick={handleGlyphComparison}
+                        disabled={isComparingGlyphs || !leftPreviewImage || !rightPreviewImage}
+                        className="px-6 py-3 bg-teal-dark text-text-light font-bold rounded-full hover:bg-teal-medium disabled:bg-secondary/30 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 transform hover:scale-105 shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:ring-teal-medium flex items-center gap-2"
+                    >
+                        <SparklesIcon className={`w-5 h-5 ${isComparingGlyphs ? 'animate-spin' : ''}`} />
+                        {isComparingGlyphs ? 'Comparing...' : 'Compare Glyphs'}
+                    </button>
+                    {critiqueError && <p className="text-xs bg-danger text-text-light p-2 rounded-md">{critiqueError}</p>}
+                </div>
+            )}
+
+            <div data-tour="comparison-area" className="grid grid-cols-1 lg:grid-cols-2 lg:gap-8 w-full">
                 <div data-tour="analysis-column">
                   <AnalysisColumn key="left" analysisResult={leftAnalysis} onAnalysisComplete={setLeftAnalysis} onPreviewCaptured={setLeftPreviewImage} />
                 </div>
                 <AnalysisColumn key="right" analysisResult={rightAnalysis} onAnalysisComplete={setRightAnalysis} onPreviewCaptured={setRightPreviewImage} />
-
-                {leftAnalysis && rightAnalysis && (
-                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10 flex flex-col items-center gap-3">
-                        <button
-                            onClick={handleCritique}
-                            disabled={isCritiquing}
-                            className="px-6 py-3 bg-accent text-surface font-bold rounded-full hover:opacity-90 disabled:bg-secondary disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 transform hover:scale-105 shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:ring-accent flex items-center gap-2"
-                        >
-                            <SparklesIcon className={`w-5 h-5 ${isCritiquing ? 'animate-spin' : ''}`} />
-                            {isCritiquing ? 'Critiquing...' : 'Critique Pairing'}
-                        </button>
-                        <button
-                            onClick={handleGlyphComparison}
-                            disabled={isComparingGlyphs || !leftPreviewImage || !rightPreviewImage}
-                            className="px-6 py-3 bg-secondary text-primary font-bold rounded-full hover:bg-secondary/80 disabled:bg-secondary/30 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 transform hover:scale-105 shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:ring-secondary flex items-center gap-2"
-                        >
-                            <SparklesIcon className={`w-5 h-5 ${isComparingGlyphs ? 'animate-spin' : ''}`} />
-                            {isComparingGlyphs ? 'Comparing...' : 'Compare Glyphs'}
-                        </button>
-                        {critiqueError && <p className="text-xs bg-danger text-primary p-2 rounded-md">{critiqueError}</p>}
-                    </div>
-                )}
             </div>
           </div>
         )}
