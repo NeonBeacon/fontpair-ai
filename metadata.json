@@ -1,0 +1,5 @@
+{
+  "name": "FontPair AI",
+  "description": "An AI-powered font pairing critique and analysis tool. Upload fonts or images to get detailed typography analysis, font pairing recommendations with scoring, accessibility evaluation, and professional design insights. Perfect for designers and developers seeking expert font guidance.",
+  "requestFramePermissions": []
+}

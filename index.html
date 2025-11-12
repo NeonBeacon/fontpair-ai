@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/logo-fp.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="AI-powered font pairing critique and analysis. Upload fonts to get expert evaluation, compare glyphs, analyze accessibility, and get professional pairing recommendations." />
+    <title>FontPair AI - AI Font Pairing & Analysis</title>
+
+    <!-- Open Graph / Social Media Meta Tags -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="FontPair AI - AI Font Pairing & Analysis" />
+    <meta property="og:description" content="AI-powered font pairing critique and analysis. Upload fonts to get expert evaluation, compare glyphs, analyze accessibility, and get professional pairing recommendations." />
+    <meta property="og:image" content="/logo-fp.svg" />
+    <meta property="og:url" content="https://fontpair.ai" />
+
+    <!-- Twitter Card Meta Tags -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="FontPair AI - AI Font Pairing & Analysis" />
+    <meta name="twitter:description" content="AI-powered font pairing critique and analysis. Upload fonts to get expert evaluation, compare glyphs, analyze accessibility, and get professional pairing recommendations." />
+    <meta name="twitter:image" content="/logo-fp.svg" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              // Paper backgrounds - NO WHITE
+              'paper-base': '#EBE6D9',        // Main background (warmer beige)
+              'paper-light': '#F2EFE8',       // Light paper areas (upload boxes)
+              'paper-dark': '#D4CAB6',        // Darker paper shade
+
+              // Teal elements
+              'teal-dark': '#2D4743',         // Dark cards
+              'teal-medium': '#4A6661',       // Borders
+              'teal-light': '#C8D5D2',        // Light accents
+
+              // Text colors
+              'text-dark': '#2B2624',         // Primary text on light
+              'text-light': '#F2EFE8',        // Text on dark backgrounds
+              'text-secondary': '#6B6560',    // Secondary text
+
+              // Accent
+              'accent': '#E67E22',            // Orange
+              'accent-dark': '#D47C2E',       // Darker orange
+
+              // Legacy compatibility (update these)
+              'primary': '#F2EFE8',           // Light text on dark
+              'secondary': '#6B6560',         // Grey text
+              'background': '#EBE6D9',        // Paper base (warmer)
+              'surface': '#2D4743',           // Dark teal
+              'border': '#4A6661',            // Teal border
+              'danger': '#C74432',
+              'light-text': '#2B2624',
+              'light-secondary': '#6B6560',
+            },
+          },
+        },
+      };
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/opentype.js/dist/opentype.min.js"></script>
+    <style>
+      body {
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+      }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "react": "https://aistudiocdn.com/react@^19.2.0",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.28.0"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
+</head>
+  <body class="bg-paper-base text-text-dark">
+    <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
+  </body>
+</html>
