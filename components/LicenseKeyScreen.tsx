@@ -88,8 +88,8 @@ const LicenseKeyScreen: React.FC<LicenseKeyScreenProps> = ({ onLicenseValidated 
             <div className="max-w-md w-full">
                 {/* Logo and Title */}
                 <div className="text-center mb-8">
-                    <div className="flex justify-center mb-4">
-                        <CadmusLogoIcon className="h-16 w-16 text-accent" />
+                    <div className="flex justify-center mb-6">
+                        <CadmusLogoIcon className="w-auto icon-embossed" style={{ height: '200px', color: '#8B7355' }} />
                     </div>
                     <h1 className="text-3xl font-bold text-primary mb-2">FontPair AI</h1>
                     <p className="text-secondary text-sm">AI-Powered Font Pairing & Analysis Tool</p>

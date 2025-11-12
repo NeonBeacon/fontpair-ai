@@ -206,8 +206,8 @@ const App: React.FC = () => {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
-          <CadmusLogoIcon className="h-16 w-16 text-accent mx-auto mb-4 animate-pulse" />
-          <p className="text-secondary">Checking license...</p>
+          <CadmusLogoIcon className="w-auto mx-auto mb-6 animate-pulse icon-embossed" style={{ height: '200px', color: '#8B7355' }} />
+          <p className="text-secondary text-lg">Checking license...</p>
         </div>
       </div>
     );
