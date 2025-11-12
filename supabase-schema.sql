@@ -335,9 +335,9 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 -- Insert sample/test licenses
 INSERT INTO public.licenses (license_key, max_devices, purchase_email, notes)
 VALUES
-    ('CADMUS-TEST-2024-ABCD', 3, 'test@example.com', 'Test license key - 3 devices'),
-    ('CADMUS-DEMO-2024-WXYZ', 1, 'demo@example.com', 'Demo license key - 1 device'),
-    ('CADMUS-PREMIUM-QRST', 5, 'premium@example.com', 'Premium license key - 5 devices')
+    ('', 3, 'test@example.com', 'Test license key - 3 devices'),
+    ('', 1, 'demo@example.com', 'Demo license key - 1 device'),
+    ('', 5, 'premium@example.com', 'Premium license key - 5 devices')
 ON CONFLICT (license_key) DO NOTHING;
 
 -- Grant necessary permissions (adjust as needed)
