@@ -42,19 +42,6 @@ View your app in AI Studio: https://ai.studio/apps/drive/1KkjXGcoHACEU3kUjB3sdn_
 
 This app includes a complete license key validation system powered by Supabase. For full setup instructions, see [LICENSE_SETUP.md](LICENSE_SETUP.md).
 
-**Quick test:** The app includes test licenses you can use:
-- `CADMUS-TEST-2024-ABCD` (3 devices)
-- `CADMUS-DEMO-2024-WXYZ` (1 device)
-- `CADMUS-PREMIUM-QRST` (5 devices)
-
-## Environment Variables
-
-See `.env.example` for all configuration options:
-
-- `GEMINI_API_KEY` - Required for Cloud AI mode
-- `VITE_SUPABASE_URL` - Required for license validation
-- `VITE_SUPABASE_ANON_KEY` - Required for license validation
-
 ## Development
 
 ```bash
