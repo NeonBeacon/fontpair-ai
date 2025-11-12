@@ -2,7 +2,7 @@
 
 This guide explains how to set up and configure the Supabase-based license key system for FontPair AI.
 
-**Note:** License keys use the `CADMUS-` prefix for database compatibility. This technical identifier remains unchanged.
+**Note:** License keys use the `` prefix for database compatibility. This technical identifier remains unchanged.
 
 ## Table of Contents
 
@@ -66,7 +66,7 @@ This creates:
 
 1. In your Supabase project, go to **Settings** > **API**
 2. Copy the following values:
-   - **Project URL** (e.g., `https://xxxxx.supabase.co`)
+   - **Project URL** (e.g., ``)
    - **anon public** key (under "Project API keys")
 
 ## Environment Configuration
@@ -85,10 +85,10 @@ This creates:
    GEMINI_API_KEY=your_actual_gemini_api_key
 
    # Your Supabase project URL
-   VITE_SUPABASE_URL=https://xxxxx.supabase.co
+   VITE_SUPABASE_URL=
 
    # Your Supabase anon key
-   VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+   VITE_SUPABASE_ANON_KEY=
    ```
 
 ### Step 2: Restart Development Server
@@ -106,22 +106,22 @@ The app will now check for a valid license on startup.
 The SQL schema includes three test licenses:
 
 1. **Standard License** (3 devices)
-   - Key: `CADMUS-TEST-2024-ABCD`
+   - Key: ``
    - Max devices: 3
 
 2. **Demo License** (1 device)
-   - Key: `CADMUS-DEMO-2024-WXYZ`
+   - Key: ``
    - Max devices: 1
 
 3. **Premium License** (5 devices)
-   - Key: `CADMUS-PREMIUM-QRST`
+   - Key: ``
    - Max devices: 5
 
 ### Testing Flow
 
 1. **First Launch**
    - App should show the License Key Screen
-   - Enter: `CADMUS-TEST-2024-ABCD`
+   - Enter: ``
    - Click "Activate License"
    - Should show success and redirect to main app
 
@@ -150,7 +150,7 @@ Add licenses directly in Supabase:
 1. Go to **Table Editor** > `licenses` table
 2. Click "Insert" > "Insert row"
 3. Fill in:
-   - `license_key`: Unique key (e.g., `CADMUS-PROD-2024-XYZA`)
+   - `license_key`: Unique key (e.g., ``)
    - `is_active`: `true`
    - `max_devices`: `3` (or desired limit)
    - `purchase_email`: Customer's email (optional)
@@ -160,7 +160,7 @@ Add licenses directly in Supabase:
 ### Generating License Keys
 
 Use a secure random generator. Example formats:
-- `CADMUS-XXXX-XXXX-XXXX` (alphanumeric)
+- `` (alphanumeric)
 - Ensure keys are:
   - 12-32 characters (excluding dashes)
   - Alphanumeric (A-Z, 0-9)
@@ -262,11 +262,11 @@ SELECT * FROM licenses;
 
 -- View all activations for a license
 SELECT * FROM activations
-WHERE license_key = 'CADMUS-TEST-2024-ABCD';
+WHERE license_key = '';
 
 -- Count active devices for a license
 SELECT COUNT(*) FROM activations
-WHERE license_key = 'CADMUS-TEST-2024-ABCD'
+WHERE license_key = ''
 AND is_active = true;
 
 -- View recent validation attempts
