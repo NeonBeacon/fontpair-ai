@@ -194,7 +194,7 @@ const AnalysisResult: React.FC<AnalysisResultProps> = ({ result, onReset, isShar
                                         <h4 style={{fontFamily: `'${pairing.secondary}', sans-serif`}} className="text-3xl font-bold text-text-dark leading-tight group-hover:underline">{pairing.secondary}</h4>
                                         <ExternalLinkIcon className="w-5 h-5 text-secondary/70 group-hover:text-accent transition-colors" />
                                     </a>
-                                    <p style={{fontFamily: `'${pairing.secondary}', sans-serif`}} className="text-base text-text-light mt-2">The quick brown fox jumps over the lazy dog.</p>
+                                    <p style={{fontFamily: `'${pairing.secondary}', sans-serif`}} className="text-base text-secondary mt-2">The quick brown fox jumps over the lazy dog.</p>
                                 </div>
                                 <p className="text-text-light text-sm leading-relaxed">{pairing.rationale}</p>
                             </div>

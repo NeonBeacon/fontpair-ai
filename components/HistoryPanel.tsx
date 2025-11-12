@@ -59,7 +59,7 @@ const HistoryPanel: React.FC<HistoryPanelProps> = ({ isOpen, onClose, onLoadAnal
         <div className="flex items-center justify-between p-6 border-b border-border">
           <div className="flex items-center gap-3">
             <HistoryIcon className="w-6 h-6 text-accent" />
-            <h2 className="text-2xl font-bold text-primary">Analysis History</h2>
+            <h2 className="text-2xl font-bold text-text-light">Analysis History</h2>
           </div>
           <button
             onClick={onClose}
@@ -111,7 +111,7 @@ const HistoryPanel: React.FC<HistoryPanelProps> = ({ isOpen, onClose, onLoadAnal
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex-1 min-w-0">
-                          <h3 className="text-lg font-bold text-primary truncate">
+                          <h3 className="text-lg font-bold text-text-dark truncate">
                             {item.analysis.fontName}
                           </h3>
                           <p className="text-accent text-sm">
