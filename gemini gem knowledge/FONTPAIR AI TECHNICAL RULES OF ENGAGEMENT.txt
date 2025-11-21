@@ -1,0 +1,23 @@
+*** FONTPAIR AI: TECHNICAL RULES OF ENGAGEMENT ***
+Strict adherence to these patterns is required.
+
+1. REACT 19 STRICT MODE
+- NO `useEffect` for data fetching. Use Suspense and the `use` API.
+- NO `useState` for form submission. Use `useActionState` and Server Actions.
+- NO `forwardRef`. Pass `ref` as a standard prop.
+- Optimistic UI: Always implement `useOptimistic` for pairing likes/saves.
+
+2. SUPABASE & SECURITY
+- RLS (Row Level Security) is MANDATORY. No open tables.
+- License Checks: Must happen server-side via Postgres Functions, never client-side JS logic alone.
+- Fingerprinting: The `visitorId` must be validated against the `license_keys` table before allowing downloads.
+
+3. PERFORMANCE
+- Fonts: Use `font-display: swap` for Google Fonts initially, then swap to custom cached versions.
+- Images: All font preview images must be generated via `html2canvas` off-screen to avoid layout thrashing.
+- Bundle Size: All heavy libraries (jsPDF, opentype.js) must be lazy-loaded (`React.lazy`).
+
+4. CSS ARCHITECTURE (TAILWIND)
+- Use `clsx` or `tailwind-merge` for all conditional classes.
+- Animation: Use `framer-motion` for complex sequences, CSS transitions for simple hovers.
+- Paper Effect: Use `mix-blend-mode: multiply` on text over texture backgrounds.

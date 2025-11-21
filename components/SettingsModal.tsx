@@ -9,6 +9,7 @@ import {
     type LicenseInfo
 } from '../services/licenseService';
 import { clearCache, getCacheStats } from '../utils/fontCache';
+import { getProjectsState } from '../services/projectService';
 
 interface SettingsModalProps {
     isOpen: boolean;
@@ -28,6 +29,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, onRestar
     } | null>(null);
     const [isCheckingChromeAI, setIsCheckingChromeAI] = useState(false);
     const [copiedFlag, setCopiedFlag] = useState<string | null>(null);
+    const [lastChecked, setLastChecked] = useState<Date | null>(null);
 
     // License management state
     const [licenseInfo, setLicenseInfo] = useState<LicenseInfo | null>(null);
@@ -45,6 +47,158 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, onRestar
     } | null>(null);
     const [isClearingCache, setIsClearingCache] = useState(false);
     const [cacheMessage, setCacheMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+
+    // Data export/import state
+    const [dataMessage, setDataMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+    const [autoSaveEnabled, setAutoSaveEnabled] = useState(() => {
+        return localStorage.getItem('cadmus_auto_save') === 'true';
+    });
+    const [autoSaveInterval, setAutoSaveIntervalState] = useState(() => {
+        return parseInt(localStorage.getItem('cadmus_auto_save_interval') || '10', 10);
+    });
+
+    const handleAutoSaveToggle = (enabled: boolean) => {
+        setAutoSaveEnabled(enabled);
+        localStorage.setItem('cadmus_auto_save', enabled.toString());
+        if (enabled) {
+            setDataMessage({ type: 'success', text: `Auto-save enabled! Data will be saved every ${autoSaveInterval} minutes.` });
+        } else {
+            setDataMessage({ type: 'success', text: 'Auto-save disabled.' });
+        }
+        setTimeout(() => setDataMessage(null), 3000);
+    };
+
+    const handleAutoSaveIntervalChange = (minutes: number) => {
+        setAutoSaveIntervalState(minutes);
+        localStorage.setItem('cadmus_auto_save_interval', minutes.toString());
+    };
+
+    // Auto-save effect
+    useEffect(() => {
+        if (!autoSaveEnabled) return;
+
+        const intervalMs = autoSaveInterval * 60 * 1000;
+        const timer = setInterval(() => {
+            try {
+                const exportData = {
+                    version: 1,
+                    exportedAt: new Date().toISOString(),
+                    projects: getProjectsState(),
+                    history: localStorage.getItem('cadmus_font_history'),
+                    cache: localStorage.getItem('cadmus_font_cache'),
+                    settings: {
+                        apiKey: getAPIKey(),
+                        aiMode: localStorage.getItem('cadmus_ai_mode')
+                    }
+                };
+
+                const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `fontpair-autosave-${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+
+                console.log('Auto-save completed:', new Date().toLocaleTimeString());
+            } catch (error) {
+                console.error('Auto-save failed:', error);
+            }
+        }, intervalMs);
+
+        return () => clearInterval(timer);
+    }, [autoSaveEnabled, autoSaveInterval]);
+
+    const handleExportAllData = () => {
+        try {
+            const exportData = {
+                version: 1,
+                exportedAt: new Date().toISOString(),
+                projects: getProjectsState(),
+                history: localStorage.getItem('cadmus_font_history'),
+                cache: localStorage.getItem('cadmus_font_cache'),
+                settings: {
+                    apiKey: getAPIKey(),
+                    aiMode: localStorage.getItem('cadmus_ai_mode')
+                }
+            };
+
+            const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `fontpair-backup-${new Date().toISOString().split('T')[0]}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            setDataMessage({ type: 'success', text: 'Data exported successfully!' });
+            setTimeout(() => setDataMessage(null), 3000);
+        } catch (error) {
+            console.error('Export error:', error);
+            setDataMessage({ type: 'error', text: 'Failed to export data' });
+            setTimeout(() => setDataMessage(null), 3000);
+        }
+    };
+
+    const handleImportData = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const importData = JSON.parse(e.target?.result as string);
+
+                if (!importData.version || !importData.projects) {
+                    throw new Error('Invalid backup file format');
+                }
+
+                // Confirm before overwriting
+                if (!confirm('This will replace your current projects and settings. Continue?')) {
+                    return;
+                }
+
+                // Import projects
+                if (importData.projects) {
+                    localStorage.setItem('cadmus_projects', JSON.stringify(importData.projects));
+                }
+
+                // Import history
+                if (importData.history) {
+                    localStorage.setItem('cadmus_font_history', importData.history);
+                }
+
+                // Import cache (optional)
+                if (importData.cache) {
+                    localStorage.setItem('cadmus_font_cache', importData.cache);
+                }
+
+                // Import settings
+                if (importData.settings?.apiKey) {
+                    setAPIKey(importData.settings.apiKey);
+                    setApiKeyState(importData.settings.apiKey);
+                }
+                if (importData.settings?.aiMode) {
+                    localStorage.setItem('cadmus_ai_mode', importData.settings.aiMode);
+                }
+
+                setDataMessage({ type: 'success', text: 'Data imported successfully! Refresh the page to see changes.' });
+                loadCacheStats();
+            } catch (error) {
+                console.error('Import error:', error);
+                setDataMessage({ type: 'error', text: 'Failed to import data. Invalid file format.' });
+                setTimeout(() => setDataMessage(null), 3000);
+            }
+        };
+        reader.readAsText(file);
+
+        // Reset the input
+        event.target.value = '';
+    };
 
     useEffect(() => {
         if (isOpen) {
@@ -151,7 +305,57 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, onRestar
         setIsCheckingChromeAI(true);
         const status = await getChromeAIStatus();
         setChromeAIStatus(status);
+
+        // If status is 'no' (flags enabled but model not downloading), try to trigger download
+        if (status.status === 'no' && window.ai?.languageModel) {
+            try {
+                // This "dummy call" often forces Chrome to wake up and start the download
+                const session = await window.ai.languageModel.create();
+                session.destroy();
+                // Re-check status after triggering
+                const updatedStatus = await getChromeAIStatus();
+                setChromeAIStatus(updatedStatus);
+            } catch (error) {
+                // Expected to fail if model isn't ready, but it may trigger download
+                console.log('Attempted to trigger Chrome AI download:', error);
+            }
+        }
+
+        setLastChecked(new Date());
         setIsCheckingChromeAI(false);
+    };
+
+    const handleForceWake = async () => {
+        if (!window.ai?.languageModel) {
+            alert('Chrome AI is not available. Please enable the Chrome flags first.');
+            return;
+        }
+
+        try {
+            const session = await window.ai.languageModel.create();
+            session.destroy();
+            alert('Wake signal sent successfully! Chrome AI appears to be ready.');
+            // Re-check status
+            const status = await getChromeAIStatus();
+            setChromeAIStatus(status);
+            setLastChecked(new Date());
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            console.log('Force wake attempt:', errorMessage);
+
+            if (errorMessage.toLowerCase().includes('download')) {
+                setChromeAIStatus({
+                    available: false,
+                    status: 'after-download',
+                    message: 'Downloading Model',
+                    details: 'Model download triggered! This may take 5-10 minutes. The status will update automatically.'
+                });
+                alert('Wake signal sent to Chrome. The model download should now be in progress. Check for a download progress bar in chrome://components.');
+            } else {
+                alert('Wake signal sent to Chrome. If the model is not downloading, try visiting chrome://components and click "Check for update" on "Optimization Guide On Device Model".');
+            }
+            setLastChecked(new Date());
+        }
     };
 
     const handleCopyToClipboard = (text: string, flagName: string) => {
@@ -467,6 +671,111 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, onRestar
                     {/* Divider */}
                     <div className="border-t border-teal-medium/30"></div>
 
+                    {/* Data Backup Section */}
+                    <section className="space-y-4">
+                        <div className="flex items-center gap-2">
+                            <h3 className="text-xl font-semibold text-text-light">Data Backup</h3>
+                            <span className="text-xs px-2 py-1 rounded-full bg-yellow-500/20 text-yellow-300 flex items-center gap-1">
+                                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                                </svg>
+                                Important
+                            </span>
+                        </div>
+
+                        <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4">
+                            <p className="text-sm text-yellow-200">
+                                Your projects and history are stored in your browser's local storage.
+                                <strong> Clearing browser data will permanently delete them.</strong>
+                                Export your data regularly to keep backups safe.
+                            </p>
+                        </div>
+
+                        <div className="bg-teal-dark/40 rounded-lg p-4 space-y-4 border border-teal-light/10">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {/* Export Button */}
+                                <button
+                                    onClick={handleExportAllData}
+                                    className="px-4 py-4 bg-accent text-surface font-semibold rounded-lg hover:bg-accent/90 transition-colors flex flex-col items-center gap-2 shadow-md"
+                                >
+                                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                    </svg>
+                                    <span>Export All Data</span>
+                                    <span className="text-xs opacity-80">Projects, history, settings</span>
+                                </button>
+
+                                {/* Import Button */}
+                                <label className="px-4 py-4 bg-teal-medium/50 border border-teal-light/20 text-text-light font-semibold rounded-lg hover:bg-teal-medium/70 transition-colors flex flex-col items-center gap-2 cursor-pointer">
+                                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                                    </svg>
+                                    <span>Import Data</span>
+                                    <span className="text-xs text-teal-light">Restore from backup file</span>
+                                    <input
+                                        type="file"
+                                        accept=".json"
+                                        onChange={handleImportData}
+                                        className="hidden"
+                                    />
+                                </label>
+                            </div>
+
+                            {dataMessage && (
+                                <div className={`text-sm p-3 rounded-md ${
+                                    dataMessage.type === 'success'
+                                        ? 'bg-green-500/10 text-green-300 border border-green-500/20'
+                                        : 'bg-red-500/10 text-red-300 border border-red-500/20'
+                                }`}>
+                                    {dataMessage.text}
+                                </div>
+                            )}
+
+                            <p className="text-xs text-teal-light">
+                                Exported file includes: all projects with pairings, font analysis history, cached analyses, and API settings.
+                            </p>
+
+                            {/* Auto-save Option */}
+                            <div className="border-t border-teal-medium/30 pt-4 mt-4">
+                                <div className="flex items-center justify-between mb-3">
+                                    <div>
+                                        <p className="font-semibold text-text-light">Auto-save Backups</p>
+                                        <p className="text-xs text-teal-light">Automatically download backup files periodically</p>
+                                    </div>
+                                    <label className="relative inline-flex items-center cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            checked={autoSaveEnabled}
+                                            onChange={(e) => handleAutoSaveToggle(e.target.checked)}
+                                            className="sr-only peer"
+                                        />
+                                        <div className="w-11 h-6 bg-teal-dark peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-accent rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent"></div>
+                                    </label>
+                                </div>
+
+                                {autoSaveEnabled && (
+                                    <div className="flex items-center gap-3">
+                                        <label className="text-sm text-teal-light">Save every:</label>
+                                        <select
+                                            value={autoSaveInterval}
+                                            onChange={(e) => handleAutoSaveIntervalChange(parseInt(e.target.value, 10))}
+                                            className="px-3 py-1.5 bg-teal-dark border border-teal-medium/40 rounded-md text-text-light text-sm focus:outline-none focus:ring-2 focus:ring-accent"
+                                        >
+                                            <option value="5">5 minutes</option>
+                                            <option value="10">10 minutes</option>
+                                            <option value="15">15 minutes</option>
+                                            <option value="30">30 minutes</option>
+                                            <option value="60">1 hour</option>
+                                        </select>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </section>
+
+                    {/* Divider */}
+                    <div className="border-t border-teal-medium/30"></div>
+
                     {/* Gemini API Section - PRIMARY OPTION */}
                     <section className="space-y-4">
                         <div className="flex items-center gap-2">
@@ -543,160 +852,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, onRestar
                         </div>
                     </section>
 
-                    {/* Divider */}
-                    <div className="border-t border-teal-medium/30"></div>
-
-                    {/* Chrome AI Section - EXPERIMENTAL/OPTIONAL */}
-                    <section className="space-y-4">
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                                <h3 className="text-lg font-semibold text-teal-light">Chrome AI (Experimental)</h3>
-                                <span className="text-xs px-2 py-1 rounded-full bg-teal-medium/30 text-teal-light font-medium border border-teal-light/20">
-                                    Beta
-                                </span>
-                                {chromeAIStatus && chromeAIStatus.status === 'readily' && (
-                                    <span className="text-xs px-2 py-1 rounded-full bg-green-500/20 text-green-300">
-                                        {chromeAIStatus.message}
-                                    </span>
-                                )}
-                            </div>
-                            <button
-                                onClick={checkChromeAI}
-                                disabled={isCheckingChromeAI}
-                                className="px-4 py-2 bg-teal-medium/50 text-text-light text-sm font-semibold rounded-md hover:bg-teal-medium/70 transition-colors disabled:opacity-50 border border-teal-light/20"
-                            >
-                                {isCheckingChromeAI ? 'Checking...' : 'Check Status'}
-                            </button>
-                        </div>
-
-                        <div className="bg-teal-dark/40 rounded-lg p-5 space-y-4 opacity-90 border border-teal-light/10">
-                            <p className="text-sm text-teal-light">
-                                Chrome AI is an experimental feature that runs locally in your browser. It may not work on all systems.
-                                <strong className="text-text-light"> For reliable results, use Cloud AI above.</strong>
-                            </p>
-
-                            {/* Status Details - Only show if ready or downloading */}
-                            {chromeAIStatus?.details && (chromeAIStatus.status === 'readily' || chromeAIStatus.status === 'after-download') && (
-                                <div className={`text-sm p-3 rounded-md ${
-                                    chromeAIStatus.status === 'readily'
-                                        ? 'bg-green-500/10 text-green-300 border border-green-500/20'
-                                        : 'bg-blue-500/10 text-blue-300 border border-blue-500/20'
-                                }`}>
-                                    {chromeAIStatus.details}
-                                </div>
-                            )}
-
-                            {/* Setup Instructions */}
-                            {chromeAIStatus?.status !== 'readily' && (
-                                <div className="space-y-4">
-                                    <p className="text-sm text-teal-light font-medium">
-                                        Chrome's built-in AI (Gemini Nano) runs locally in your browser for fast, free analysis.
-                                    </p>
-
-                                    <div className="space-y-3">
-                                        <p className="text-sm font-semibold text-text-light">Step-by-Step Setup:</p>
-
-                                        {/* Step 1 */}
-                                        <div className="space-y-2">
-                                            <p className="text-sm text-text-light font-medium">1. Enable Chrome Flags</p>
-                                            <p className="text-xs text-teal-light">Copy each URL below and paste into your browser address bar:</p>
-
-                                            {flags.map((flag) => (
-                                                <div key={flag.name} className="bg-teal-dark/60 rounded-md p-3 space-y-2 border border-teal-medium/30">
-                                                    <div className="flex items-center justify-between gap-2">
-                                                        <code className="text-xs text-accent flex-1 break-all">
-                                                            {flag.url}
-                                                        </code>
-                                                        <button
-                                                            onClick={() => handleCopyToClipboard(flag.url, flag.name)}
-                                                            className="px-3 py-1.5 bg-accent text-text-light text-xs font-semibold rounded hover:bg-accent-dark transition-colors flex items-center gap-1.5 whitespace-nowrap shadow-md"
-                                                        >
-                                                            {copiedFlag === flag.name ? (
-                                                                <>
-                                                                    <CheckIcon className="w-3 h-3" />
-                                                                    Copied
-                                                                </>
-                                                            ) : (
-                                                                <>
-                                                                    <CopyIcon className="w-3 h-3" />
-                                                                    Copy
-                                                                </>
-                                                            )}
-                                                        </button>
-                                                    </div>
-                                                    <div className="text-xs space-y-1">
-                                                        <p className="text-teal-light">{flag.description}</p>
-                                                        <p className="text-text-light">
-                                                            Set to: <span className="font-semibold text-accent">{flag.value}</span>
-                                                        </p>
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-
-                                        {/* Step 2 */}
-                                        <div className="space-y-2">
-                                            <p className="text-sm text-text-light font-medium">2. Restart Chrome</p>
-                                            <p className="text-xs text-teal-light">
-                                                After setting both flags, click "Relaunch" in Chrome or restart your browser completely.
-                                            </p>
-                                        </div>
-
-                                        {/* Step 3 */}
-                                        <div className="space-y-2">
-                                            <p className="text-sm text-text-light font-medium">3. Wait for Model Download</p>
-                                            <p className="text-xs text-teal-light">
-                                                Chrome will download the AI model (5-10 minutes). This page auto-checks every 30 seconds when downloading.
-                                            </p>
-                                        </div>
-
-                                        {/* Step 4 */}
-                                        <div className="space-y-2">
-                                            <p className="text-sm text-text-light font-medium">4. Verify Setup</p>
-                                            <p className="text-xs text-teal-light">
-                                                Click "Check Status" above to verify Chrome AI is ready. You can also test in DevTools:
-                                            </p>
-                                            <div className="bg-teal-dark/60 rounded-md p-3 border border-teal-medium/30">
-                                                <div className="flex items-center justify-between gap-2">
-                                                    <code className="text-xs text-accent">
-                                                        await ai.languageModel.capabilities()
-                                                    </code>
-                                                    <button
-                                                        onClick={() => handleCopyToClipboard('await ai.languageModel.capabilities()', 'test-command')}
-                                                        className="px-3 py-1.5 bg-accent text-text-light text-xs font-semibold rounded hover:bg-accent-dark transition-colors flex items-center gap-1.5 shadow-md"
-                                                    >
-                                                        {copiedFlag === 'test-command' ? (
-                                                            <>
-                                                                <CheckIcon className="w-3 h-3" />
-                                                                Copied
-                                                            </>
-                                                        ) : (
-                                                            <>
-                                                                <CopyIcon className="w-3 h-3" />
-                                                                Copy
-                                                            </>
-                                                        )}
-                                                    </button>
-                                                </div>
-                                                <p className="text-xs text-secondary mt-2">
-                                                    Open DevTools (F12), paste in Console, and press Enter. Should return {`{ available: "readily" }`}
-                                                </p>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* Note about Chrome AI limitations */}
-                                    <div className="bg-background border border-border/50 rounded-md p-3 space-y-1">
-                                        <p className="text-xs text-secondary/70">
-                                            <strong>Note:</strong> Chrome AI is experimental and may not work on all systems.
-                                            Requires Chrome Canary/Dev, specific hardware, and may take 5-10 minutes to download the model.
-                                            If setup fails, simply use Cloud AI instead for reliable results.
-                                        </p>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    </section>
                 </div>
             </div>
         </div>

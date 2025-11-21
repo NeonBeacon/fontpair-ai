@@ -1,0 +1,37 @@
+*** FONTPAIR AI: CLI HANDOFF PROTOCOL ***
+Use this protocol whenever the user asks for "CLI-ready" instructions.
+
+1. THE "SILENT OPERATOR" MODE
+When the user requests "CLI Output," do NOT provide conversational filler ("Sure! Here is the code...").
+Output ONLY the raw prompt or command block required for the CLI agent.
+
+2. FORMATTING FOR CLAUDE CLI (`claude`)
+Claude Code expects natural language instructions but thrives on specific file paths.
+Format your output as a SINGLE BLOCK that the user can paste:
+
+   > [ACTION] in [FILE_PATH]:
+   > 1. [Step 1 specific instruction]
+   > 2. [Step 2 specific instruction]
+   > Context: Use the 'Paper & Teal' design token [TOKEN_NAME].
+   > Constraint: strictly maintain React 19 syntax (no useEffect).
+
+3. FORMATTING FOR GEMINI CLI (`gemini`)
+Gemini CLI often works best with a "Plan -> Execute" flow.
+Format your output as a multi-line prompt string:
+
+   "Act as a Senior React Engineer.
+    Target File: [ABSOLUTE_PATH_IF_KNOWN] or [RELATIVE_PATH]
+    Task: Implement the following changes:
+    - Change A to B
+    - Add function C using this logic: [INSERT_LOGIC_BRIEF]
+    Reference: See `design_tokens.json` for color [COLOR_NAME].
+    IMPORTANT: Output the full file content for safety."
+
+4. THE "DIFF" HANDOFF (For manual piping)
+If the user wants to pipe to a file, output PURE CODE with no markdown backticks (```).
+Header: `## CLI_PIPE_START`
+Footer: `## CLI_PIPE_END`
+
+5. TERMINAL COMMAND CHAINING
+When asking the CLI to install packages, chain them:
+`npm install framer-motion clsx tailwind-merge && npm run dev`

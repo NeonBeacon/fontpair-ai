@@ -23,9 +23,10 @@ interface AnalysisColumnProps {
     onAnalysisComplete: (result: FontAnalysis | null) => void;
     isSharedView?: boolean;
     onPreviewCaptured?: (previewBase64: string) => void;
+    savedPreviewImage?: string | null;
 }
 
-const AnalysisColumn: React.FC<AnalysisColumnProps> = ({ analysisResult, onAnalysisComplete, isSharedView = false, onPreviewCaptured }) => {
+const AnalysisColumn: React.FC<AnalysisColumnProps> = ({ analysisResult, onAnalysisComplete, isSharedView = false, onPreviewCaptured, savedPreviewImage }) => {
     const [mode, setMode] = useState<'upload' | 'google'>('upload');
     const [file, setFile] = useState<File | null>(null);
     const [googleFont, setGoogleFont] = useState<string>('');
@@ -138,6 +139,52 @@ const AnalysisColumn: React.FC<AnalysisColumnProps> = ({ analysisResult, onAnaly
             }
 
             const result = await analyzeFont(base64, mimeType, fileName, fontMetadata);
+
+            // Determine font source based on current mode, file type, and AI analysis
+            let fontSource: import('../types').FontSource = 'other';
+            if (mode === 'google' && googleFont) {
+                fontSource = 'google-fonts';
+            } else if (mode === 'upload' && file) {
+                if (file.type.startsWith('image/')) {
+                    fontSource = 'image';
+                } else if (isFontFile) {
+                    // Comprehensive font source detection
+                    const metadataLower = fontMetadata?.toLowerCase() || '';
+                    const fileNameLower = file.name.toLowerCase();
+                    const foundryLower = result.fontFoundry?.toLowerCase() || '';
+
+                    // Check for various font sources based on metadata, filename, and foundry
+                    if (metadataLower.includes('adobe') || fileNameLower.includes('adobe') || foundryLower.includes('adobe')) {
+                        fontSource = 'adobe-fonts';
+                    } else if (metadataLower.includes('indian type foundry') || foundryLower.includes('indian type foundry') || fileNameLower.includes('fontshare')) {
+                        fontSource = 'fontshare';
+                    } else if (metadataLower.includes('myfonts') || fileNameLower.includes('myfonts')) {
+                        fontSource = 'myfonts';
+                    } else if (metadataLower.includes('font squirrel') || fileNameLower.includes('fontsquirrel')) {
+                        fontSource = 'font-squirrel';
+                    } else if (metadataLower.includes('dafont') || fileNameLower.includes('dafont')) {
+                        fontSource = 'dafont';
+                    } else if (metadataLower.includes('fontesk') || fileNameLower.includes('fontesk')) {
+                        fontSource = 'fontesk';
+                    } else if (metadataLower.includes('velvetyne') || foundryLower.includes('velvetyne')) {
+                        fontSource = 'velvetyne';
+                    } else if (metadataLower.includes('league of moveable type') || foundryLower.includes('league of moveable type')) {
+                        fontSource = 'league-of-moveable-type';
+                    } else if (metadataLower.includes('northern block') || foundryLower.includes('northern block')) {
+                        fontSource = 'the-northern-block';
+                    } else if (metadataLower.includes('atipo') || foundryLower.includes('atipo')) {
+                        fontSource = 'atipo';
+                    } else if (metadataLower.includes('google') || foundryLower.includes('google')) {
+                        fontSource = 'google-fonts';
+                    } else {
+                        fontSource = 'uploaded-file';
+                    }
+                }
+            }
+
+            // Add fontSource to result
+            result.fontSource = fontSource;
+
             onAnalysisComplete(result);
 
             // Cache the result if we have a cache key and analysis was successful
@@ -209,6 +256,39 @@ const AnalysisColumn: React.FC<AnalysisColumnProps> = ({ analysisResult, onAnaly
     }
   
     const renderPreviewContent = () => {
+        // If we have no live file/font but we have a saved preview (History mode), show it
+        if (!file && !googleFont && savedPreviewImage && analysisResult) {
+            return (
+                <div className="w-full h-full min-h-[400px] p-6 border border-dashed border-white/10 rounded-lg bg-[#1A3431] flex flex-col justify-center items-center text-center relative overflow-hidden group">
+                    {/* Watermark Badge */}
+                    <div className="absolute top-4 right-4 bg-black/60 backdrop-blur-md px-3 py-1 rounded-full border border-white/10 z-10">
+                        <span className="text-xs font-medium text-white/80 flex items-center gap-1">
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                            Static Snapshot
+                        </span>
+                    </div>
+                    {/* The Image */}
+                    <img
+                        src={savedPreviewImage}
+                        alt="Saved Analysis Preview"
+                        className="w-full max-w-md h-auto rounded shadow-lg opacity-80 transition-opacity group-hover:opacity-100"
+                    />
+                    {/* The Disclaimer Card */}
+                    <div className="mt-6 p-4 bg-black/30 rounded-lg border border-white/5 max-w-sm backdrop-blur-sm">
+                        <p className="text-[#FF8E24] text-xs font-bold uppercase tracking-wide mb-1">
+                            Functionality Limited
+                        </p>
+                        <p className="text-[#F5F2EB]/80 text-xs leading-relaxed">
+                            This is a low-resolution reference image. Heavy font files are not stored in History to protect your browser storage.
+                        </p>
+                        <p className="text-[#F5F2EB] text-xs font-semibold mt-2 border-t border-white/10 pt-2">
+                            To use the Live Type Tester, please re-upload the font file.
+                        </p>
+                    </div>
+                </div>
+            );
+        }
+
         if (mode === 'upload' && file?.type.startsWith('image/')) {
             return (
                 <div className="w-full h-full p-4 border border-dashed border-border rounded-lg bg-background/50 flex flex-col justify-center items-center">

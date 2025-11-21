@@ -38,7 +38,29 @@ export interface FontAnalysis {
   accessibility: FontAccessibility;
   similarFonts: SimilarFont[];
   isVariable: boolean;
+  fontFoundry?: string; // The foundry/company that created the font (e.g., "Adobe", "Google", "Monotype")
+  fontSource?: FontSource; // Where the font was analyzed from (optional for backward compatibility)
+  characterSets?: string[]; // Language support (Latin, Cyrillic, Greek, etc.)
+  releaseYear?: string; // When the font was released
+  licensingNotes?: string; // Commercial usage considerations
 }
+
+// Font source types - expanded for universal font support
+export type FontSource =
+  | 'google-fonts'
+  | 'adobe-fonts'
+  | 'uploaded-file'
+  | 'image'
+  | 'myfonts'
+  | 'fontshare'
+  | 'font-squirrel'
+  | 'dafont'
+  | 'fontesk'
+  | 'velvetyne'
+  | 'league-of-moveable-type'
+  | 'the-northern-block'
+  | 'atipo'
+  | 'other';
 
 export interface PairingCritique {
     overallScore: number; // 1-10
@@ -111,12 +133,18 @@ export interface FontSuggestionRequest {
 }
 
 export interface FontSuggestion {
-    fontName: string;                 // Google Font name
+    fontName: string;                 // Font name
     category: string;                 // serif, sans-serif, display, etc.
     rationale: string;                // Why this font fits (2-3 sentences)
     useCases: string[];               // Specific use cases: ["Headers", "Logo"]
     matchScore: number;               // 1-10 relevance score
+    source?: string;                  // Where to get: Google Fonts, Adobe Fonts, Fontshare, etc.
     previewText?: string;             // Optional custom preview text
+    alternatives?: Array<{            // Premium alternatives for users with pro subscriptions
+        name: string;                 // Font name (e.g., "Futura")
+        source: string;               // Source (e.g., "Adobe Fonts", "Monotype")
+        similarity: string;           // Match description (e.g., "95% match", "More geometric")
+    }>;
 }
 
 export interface FontSuggestionResult {
@@ -149,4 +177,77 @@ export interface OnboardingState {
     isActive: boolean;
     currentStep: number;
     hasCompleted: boolean;
+}
+
+// Font DNA Matching types
+export interface FontDNAMatch {
+    fontName: string;                  // Name of the similar font
+    source: string;                    // Where to get it (Google Fonts, Adobe Fonts, etc.)
+    matchScore: number;                // 1-100 similarity score
+    visualSimilarity: string;          // Description of visual similarities
+    differingCharacteristics: string;  // What makes it different/unique
+    bestUseCase: string;               // When to use this alternative instead
+    isPremium: boolean;                // Whether it requires a paid license
+    directLink?: string;               // Optional: Direct link to font source
+}
+
+export interface FontDNAResult {
+    referenceFont: string;             // The font we're finding alternatives for
+    totalMatches: number;              // How many alternatives were found
+    matches: FontDNAMatch[];           // Array of similar fonts
+    analysisNotes: string;             // AI's commentary on the matching process
+    characteristics: string[];         // Key DNA characteristics identified
+}
+
+// Project Management types
+export interface ProjectPairing {
+    id: string;                        // Unique ID for this pairing
+    leftFont: FontAnalysis | null;     // Left column analysis
+    rightFont: FontAnalysis | null;    // Right column analysis
+    leftPreview?: string;              // Preview image base64
+    rightPreview?: string;             // Preview image base64
+    critique?: PairingCritique;        // Optional critique
+    createdAt: number;                 // Timestamp when added
+    notes?: string;                    // User notes for this pairing
+}
+
+export interface Project {
+    id: string;                        // Unique project ID
+    name: string;                      // Project name (e.g., "Client Brand Refresh")
+    description?: string;              // Optional project description
+    pairings: ProjectPairing[];        // Array of font pairings in this project
+    createdAt: number;                 // Timestamp when created
+    updatedAt: number;                 // Timestamp when last modified
+    color?: string;                    // Optional color tag for the project
+}
+
+export interface ProjectsState {
+    projects: Project[];               // All projects
+    activeProjectId: string | null;    // Currently active project ID
+}
+
+// Typography Context & Trends types
+export interface TypographyContextResult {
+    fontName: string;                  // The font being analyzed
+    historicalUsage: string;           // Historical usage and notable examples
+    currentTrends: string;             // Current typography trends (2025)
+    pairingTrends: string[];           // What fonts are commonly paired with this
+    recommendations: string;           // Professional recommendations
+    culturalContext: string;           // Cultural/regional considerations
+}
+
+// Batch Compatibility Matrix types
+export interface PairingScore {
+    font1: string;                     // First font name
+    font2: string;                     // Second font name
+    score: number;                     // Compatibility score 1-10
+    quickNote: string;                 // Brief note about the pairing
+}
+
+export interface BatchCompatibilityResult {
+    fonts: string[];                   // List of font names analyzed
+    pairings: PairingScore[];          // All pairwise compatibility scores
+    topPairings: PairingScore[];       // Top 3 best pairings
+    worstPairings: PairingScore[];     // Bottom 3 worst pairings
+    overallNotes: string;              // General observations about the font set
 }

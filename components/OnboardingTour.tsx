@@ -10,11 +10,11 @@ interface OnboardingTourProps {
 const ONBOARDING_STEPS: OnboardingStep[] = [
   {
     id: 'welcome',
-    targetSelector: '[data-tour="settings-button"]',
+    targetSelector: 'body',
     title: 'Welcome to FontPair AI!',
-    message: 'First, let\'s get you set up. Click here to add your Gemini API key and start your font pairing journey.',
-    placement: 'bottom',
-    actionText: 'Got it'
+    message: 'Your AI-powered typography companion. Let\'s take a quick tour to get you started on your font pairing journey.',
+    placement: 'center',
+    actionText: 'Let\'s Go!'
   },
   {
     id: 'analyze',
@@ -38,6 +38,14 @@ const ONBOARDING_STEPS: OnboardingStep[] = [
     title: 'Compare & Critique',
     message: 'Analyze fonts side-by-side and get AI pairing critiques to find the perfect combination for your project.',
     placement: 'center',
+    actionText: 'Next'
+  },
+  {
+    id: 'data-warning',
+    targetSelector: '[data-tour="settings-button"]',
+    title: 'Important: Backup Your Data',
+    message: 'Your projects and history are stored in your browser. Clearing browser data will delete them! Use Settings > Export Data to backup your work regularly.',
+    placement: 'bottom',
     actionText: 'Start Exploring!'
   }
 ];
@@ -152,16 +160,18 @@ export const OnboardingTour: React.FC<OnboardingTourProps> = ({
         className="absolute bg-surface rounded-xl shadow-2xl p-6 max-w-md pointer-events-auto"
         style={{
           ...getTooltipPosition(targetPosition, step.placement),
+          minWidth: '350px',
           animation: 'fade-in-up 0.3s ease-out',
           zIndex: 10000
         }}
       >
-        {/* Progress Indicator */}
+        {/* Progress Indicator - Clickable */}
         <div className="flex gap-2 mb-4">
           {ONBOARDING_STEPS.map((_, index) => (
             <div
               key={index}
-              className={`h-2 flex-1 rounded-full transition-colors duration-300 ${
+              onClick={() => setCurrentStep(index)}
+              className={`h-2 flex-1 rounded-full transition-colors duration-300 cursor-pointer hover:opacity-80 ${
                 index === currentStep ? 'bg-accent' : 'bg-border'
               }`}
             />
@@ -173,17 +183,17 @@ export const OnboardingTour: React.FC<OnboardingTourProps> = ({
         <p className="text-secondary text-base leading-relaxed mb-6">{step.message}</p>
 
         {/* Actions */}
-        <div className="flex justify-between items-center">
+        <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-between sm:items-center">
           <button
             onClick={handleSkip}
-            className="text-secondary hover:text-primary text-sm font-medium transition-colors"
+            className="w-full sm:w-auto text-secondary hover:text-primary text-sm font-medium transition-colors py-2"
           >
             Skip Tour
           </button>
 
           <button
             onClick={handleNext}
-            className="px-6 py-2.5 bg-accent text-surface rounded-lg font-semibold hover:bg-accent/90 transition-colors"
+            className="w-full sm:w-auto px-6 py-2.5 bg-accent text-surface rounded-lg font-semibold hover:bg-accent/90 transition-colors"
           >
             {step.actionText}
           </button>
@@ -198,39 +208,101 @@ export const OnboardingTour: React.FC<OnboardingTourProps> = ({
   );
 };
 
-// Helper function to calculate tooltip position
+// Helper function to calculate tooltip position with edge safety
 const getTooltipPosition = (
   targetPos: { top: number; left: number; width: number; height: number },
   placement?: string
 ): React.CSSProperties => {
   const offset = 20; // Gap between target and tooltip
+  const tooltipWidth = 380; // Approximate tooltip width (minWidth: 350px + padding)
+  const margin = 20; // Screen edge margin
+
+  // For center placement, no edge checking needed
+  if (placement === 'center') {
+    return {
+      top: '50%',
+      left: '50%',
+      transform: 'translate(-50%, -50%)'
+    };
+  }
+
+  // Calculate the target's right edge
+  const targetRight = targetPos.left + targetPos.width;
+
+  // Check if target is near right edge of screen
+  const isNearRightEdge = targetRight > window.innerWidth - 50;
+  // Check if target is near left edge of screen
+  const isNearLeftEdge = targetPos.left < 50;
 
   switch (placement) {
-    case 'bottom':
+    case 'bottom': {
+      let left = targetPos.left + targetPos.width / 2;
+
+      // Right edge safety: force tooltip to align to right edge
+      if (isNearRightEdge) {
+        return {
+          top: targetPos.top + targetPos.height + offset,
+          right: margin,
+          transform: 'none'
+        };
+      }
+
+      // Left edge safety
+      if (left < tooltipWidth / 2 + margin) {
+        left = margin;
+        return {
+          top: targetPos.top + targetPos.height + offset,
+          left: left,
+          transform: 'none'
+        };
+      }
+
       return {
         top: targetPos.top + targetPos.height + offset,
-        left: targetPos.left + targetPos.width / 2,
+        left: left,
         transform: 'translateX(-50%)'
       };
-    case 'top':
+    }
+    case 'top': {
+      let left = targetPos.left + targetPos.width / 2;
+
+      // Right edge safety
+      if (isNearRightEdge) {
+        return {
+          bottom: window.innerHeight - targetPos.top + offset,
+          right: margin,
+          transform: 'none'
+        };
+      }
+
+      // Left edge safety
+      if (left < tooltipWidth / 2 + margin) {
+        left = margin;
+        return {
+          bottom: window.innerHeight - targetPos.top + offset,
+          left: left,
+          transform: 'none'
+        };
+      }
+
       return {
         bottom: window.innerHeight - targetPos.top + offset,
-        left: targetPos.left + targetPos.width / 2,
+        left: left,
         transform: 'translateX(-50%)'
       };
+    }
     case 'right':
       return {
         top: targetPos.top + targetPos.height / 2,
-        left: targetPos.left + targetPos.width + offset,
+        left: Math.min(targetPos.left + targetPos.width + offset, window.innerWidth - tooltipWidth - margin),
         transform: 'translateY(-50%)'
       };
     case 'left':
       return {
         top: targetPos.top + targetPos.height / 2,
-        right: window.innerWidth - targetPos.left + offset,
+        right: Math.min(window.innerWidth - targetPos.left + offset, window.innerWidth - margin),
         transform: 'translateY(-50%)'
       };
-    case 'center':
     default:
       return {
         top: '50%',

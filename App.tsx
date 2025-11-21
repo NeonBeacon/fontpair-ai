@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { CadmusLogoIcon, SparklesIcon, HistoryIcon, SettingsIcon } from './components/Icons';
 import AnalysisColumn from './components/AnalysisColumn';
-import type { FontAnalysis, PairingCritique, GlyphComparisonResult, AIMode } from './types';
+import type { FontAnalysis, PairingCritique, GlyphComparisonResult, AIMode, Project } from './types';
 import { critiqueFontPairing, compareGlyphs } from './services/geminiService';
 import PairingCritiqueModal from './components/PairingCritiqueModal';
 import HistoryPanel from './components/HistoryPanel';
@@ -11,8 +11,12 @@ import LicenseKeyScreen from './components/LicenseKeyScreen';
 import FontSuggestionView from './components/FontSuggestionView';
 import OnboardingTour from './components/OnboardingTour';
 import PaperTexture from './components/PaperTexture';
+import ProjectPanel from './components/ProjectPanel';
+import TypeScaleBuilder from './components/TypeScaleBuilder';
+import BatchCompatibilityMatrix from './components/BatchCompatibilityMatrix';
 import { getAIMode, setAIMode, getAPIKey, validateAIMode, isChromeAIAvailable } from './utils/aiSettings';
 import { checkActivationStatus } from './services/licenseService';
+import { getHistory } from './historyService';
 
 type ViewMode = 'comparison' | 'suggestions';
 
@@ -37,6 +41,10 @@ const App: React.FC = () => {
   const [isLicenseValid, setIsLicenseValid] = useState<boolean | null>(null); // null = checking, true = valid, false = invalid
   const [isCheckingLicense, setIsCheckingLicense] = useState(true);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [showProjects, setShowProjects] = useState(false);
+  const [activeProject, setActiveProject] = useState<Project | null>(null);
+  const [showTypeScale, setShowTypeScale] = useState(false);
+  const [showBatchMatrix, setShowBatchMatrix] = useState(false);
 
   // Check license on mount
   useEffect(() => {
@@ -100,14 +108,25 @@ const App: React.FC = () => {
     initAISettings();
   }, []);
 
-  // Check if user has completed onboarding
+  // Check if user has completed onboarding OR needs to add API key
   useEffect(() => {
     const hasCompleted = localStorage.getItem('onboarding_completed');
-    if (!hasCompleted && isLicenseValid) {
+    const apiKey = getAPIKey();
+
+    // Show onboarding if: (not completed AND license valid) OR (no API key - force BYOK setup)
+    if ((!hasCompleted && isLicenseValid) || (!apiKey && isLicenseValid)) {
       // Delay slightly to ensure DOM is ready
       setTimeout(() => setShowOnboarding(true), 500);
     }
   }, [isLicenseValid]);
+
+  // Toast notification state
+  const [toast, setToast] = useState<{ message: string; type: 'info' | 'warning' | 'error' } | null>(null);
+
+  const showToast = (message: string, type: 'info' | 'warning' | 'error' = 'info') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 4000);
+  };
 
   const handleToggleAIMode = async () => {
     const newMode: AIMode = aiMode === 'chrome' ? 'cloud' : 'chrome';
@@ -117,13 +136,15 @@ const App: React.FC = () => {
     if (!validation.valid) {
       // If Chrome AI fails, auto-fallback to Cloud AI
       if (validation.shouldFallback && newMode === 'chrome') {
-        alert('Chrome AI is experimental and not available on your system. Using Cloud AI instead.');
-        // Stay on cloud mode
+        showToast('Chrome AI unavailable. Using Cloud AI for reliable results.', 'info');
+        // Auto-switch to cloud mode
+        setAiModeState('cloud');
+        setAIMode('cloud');
         return;
       }
 
       // For Cloud AI, show settings to add API key
-      alert(validation.error);
+      showToast(validation.error || 'Please configure your API key in Settings.', 'warning');
       if (newMode === 'cloud') {
         setShowSettings(true);
       }
@@ -133,6 +154,7 @@ const App: React.FC = () => {
     // Mode is valid, switch to it
     setAiModeState(newMode);
     setAIMode(newMode);
+    showToast(`Switched to ${newMode === 'chrome' ? 'Chrome AI (Local)' : 'Cloud AI (Gemini)'}`, 'info');
   };
   
   const resetToComparisonView = () => {
@@ -157,8 +179,14 @@ const App: React.FC = () => {
       }
   };
 
-  const handleLoadFromHistory = (analysis: FontAnalysis) => {
-    setLeftAnalysis(analysis);
+  const handleLoadFromHistory = (item: import('./historyService').HistoryItem, target: 'left' | 'right') => {
+    if (target === 'left') {
+      setLeftAnalysis(item.analysis);
+      if (item.thumbnail) setLeftPreviewImage(item.thumbnail);
+    } else {
+      setRightAnalysis(item.analysis);
+      if (item.thumbnail) setRightPreviewImage(item.thumbnail);
+    }
   };
 
   const handleGlyphComparison = async () => {
@@ -231,54 +259,10 @@ const App: React.FC = () => {
             <CadmusLogoIcon aria-hidden="true" className="w-auto icon-embossed" style={{ color: '#8B7355', height: '150px' }} />
           </div>
 
-          {/* Center: AI Mode Toggle with paper inset effect */}
-          <div className="flex items-center gap-3 ai-toggle-inset rounded-lg p-3">
-            {/* Cloud AI - Primary Option */}
-            <button
-              onClick={handleToggleAIMode}
-              disabled={aiMode === 'cloud' && !hasAPIKey}
-              className={`relative flex items-center gap-2 px-5 py-2.5 rounded-md transition-all duration-200 ${
-                aiMode === 'cloud'
-                  ? 'button-inset-active'
-                  : 'button-inset'
-              } ${aiMode === 'cloud' && !hasAPIKey ? 'opacity-50 cursor-not-allowed' : ''}`}
-              title={aiMode === 'cloud' && !hasAPIKey ? 'Add API key in settings' : 'Switch to Cloud AI'}
-              style={{
-                color: aiMode === 'cloud' ? '#3d3226' : '#6b5d4f',
-                fontWeight: aiMode === 'cloud' ? '700' : '600'
-              }}
-            >
-              <span className="text-sm">Cloud AI</span>
-              <span className={`text-xs px-2 py-0.5 rounded-full ${
-                aiMode === 'cloud' ? 'paper-accent-bg text-primary' : 'bg-black/15'
-              }`}>
-                {hasAPIKey ? 'Recommended' : 'Setup'}
-              </span>
-            </button>
-
-            <div className="w-px h-8 bg-black/15"></div>
-
-            {/* Chrome AI - Experimental Option */}
-            <button
-              onClick={handleToggleAIMode}
-              className={`relative flex items-center gap-2 px-5 py-2.5 rounded-md transition-all duration-200 ${
-                aiMode === 'chrome'
-                  ? 'button-inset-active'
-                  : 'button-inset'
-              }`}
-              title={!chromeAIAvailable ? 'Chrome AI is experimental and not available' : 'Switch to Chrome AI (Experimental)'}
-              style={{
-                color: aiMode === 'chrome' ? '#3d3226' : '#6b5d4f',
-                fontWeight: aiMode === 'chrome' ? '700' : '600'
-              }}
-            >
-              <span className="text-sm">Chrome AI</span>
-              <span className={`text-xs px-2 py-0.5 rounded-full ${
-                aiMode === 'chrome' ? 'paper-accent-bg text-primary' : 'bg-black/15'
-              }`}>
-                Beta
-              </span>
-            </button>
+          {/* Center: Cloud AI Status Badge */}
+          <div className="px-4 py-2 bg-[#1A3431] border border-[#2D4E4A] rounded-lg flex items-center gap-2 shadow-inner">
+            <span className="w-2 h-2 rounded-full bg-[#FF8E24] animate-pulse"></span>
+            <span className="text-sm font-medium text-[#F5F2EB]">Cloud AI Active</span>
           </div>
 
           {/* Right: Action Buttons with paper inset effect */}
@@ -298,6 +282,21 @@ const App: React.FC = () => {
             >
               <span className="text-sm">
                 {viewMode === 'suggestions' ? 'Compare Fonts' : 'Find Fonts'}
+              </span>
+            </button>
+            <button
+              onClick={() => setShowProjects(true)}
+              className={`button-inset p-2.5 rounded-md transition-all duration-200 flex items-center gap-2 ${
+                activeProject ? 'ring-2 ring-accent/50' : ''
+              }`}
+              aria-label="View projects"
+              style={{ color: '#6b5d4f' }}
+            >
+              <svg className="h-6 w-6 icon-embossed" style={{ color: '#8B7355' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+              </svg>
+              <span className="hidden sm:inline text-sm font-semibold">
+                {activeProject ? activeProject.name : 'Projects'}
               </span>
             </button>
             <button
@@ -337,34 +336,54 @@ const App: React.FC = () => {
             <p className="text-center text-lg text-light-secondary mb-8 max-w-4xl mx-auto">
               Upload a font file or an image of text in each column to get a side-by-side AI-powered analysis of the typefaces.
             </p>
-            {/* Sticky Action Buttons - Always visible when both analyses are ready */}
-            {leftAnalysis && rightAnalysis && (
-                <div className="sticky top-4 z-20 flex justify-center gap-3 mb-6">
-                    <button
-                        onClick={handleCritique}
-                        disabled={isCritiquing}
-                        className="px-6 py-3 bg-accent text-text-light font-bold rounded-full hover:opacity-90 disabled:bg-secondary disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 transform hover:scale-105 shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:ring-accent flex items-center gap-2"
-                    >
-                        <SparklesIcon className={`w-5 h-5 ${isCritiquing ? 'animate-spin' : ''}`} />
-                        {isCritiquing ? 'Critiquing...' : 'Critique Pairing'}
-                    </button>
-                    <button
-                        onClick={handleGlyphComparison}
-                        disabled={isComparingGlyphs || !leftPreviewImage || !rightPreviewImage}
-                        className="px-6 py-3 bg-teal-dark text-text-light font-bold rounded-full hover:bg-teal-medium disabled:bg-secondary/30 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 transform hover:scale-105 shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:ring-teal-medium flex items-center gap-2"
-                    >
-                        <SparklesIcon className={`w-5 h-5 ${isComparingGlyphs ? 'animate-spin' : ''}`} />
-                        {isComparingGlyphs ? 'Comparing...' : 'Compare Glyphs'}
-                    </button>
-                    {critiqueError && <p className="text-xs bg-danger text-text-light p-2 rounded-md">{critiqueError}</p>}
-                </div>
-            )}
+            <div data-tour="comparison-area" className="desk-surface p-8 rounded-xl shadow-2xl border border-white/5">
+              {/* Sticky Action Buttons - Inside desk surface */}
+              {leftAnalysis && rightAnalysis && (
+                  <div className="sticky top-4 z-20 flex justify-center gap-3 mb-6 flex-wrap">
+                      <button
+                          onClick={handleCritique}
+                          disabled={isCritiquing}
+                          className="px-6 py-3 bg-accent text-text-light font-bold rounded-full hover:opacity-90 disabled:bg-secondary disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 transform hover:scale-105 shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:ring-accent flex items-center gap-2"
+                      >
+                          <SparklesIcon className={`w-5 h-5 ${isCritiquing ? 'animate-spin' : ''}`} />
+                          {isCritiquing ? 'Critiquing...' : 'Critique Pairing'}
+                      </button>
+                      <button
+                          onClick={handleGlyphComparison}
+                          disabled={isComparingGlyphs || !leftPreviewImage || !rightPreviewImage}
+                          className="px-6 py-3 bg-teal-dark text-text-light font-bold rounded-full hover:bg-teal-medium disabled:bg-secondary/30 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 transform hover:scale-105 shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:ring-teal-medium flex items-center gap-2"
+                      >
+                          <SparklesIcon className={`w-5 h-5 ${isComparingGlyphs ? 'animate-spin' : ''}`} />
+                          {isComparingGlyphs ? 'Comparing...' : 'Compare Glyphs'}
+                      </button>
+                      <button
+                          onClick={() => setShowTypeScale(true)}
+                          className="px-6 py-3 bg-teal-medium text-text-light font-bold rounded-full hover:bg-teal-dark transition-all duration-300 transform hover:scale-105 shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:ring-teal-light flex items-center gap-2"
+                      >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                          </svg>
+                          Type Scale
+                      </button>
+                      <button
+                          onClick={() => setShowBatchMatrix(true)}
+                          className="px-6 py-3 bg-surface text-accent font-bold rounded-full border-2 border-accent hover:bg-accent hover:text-surface transition-all duration-300 transform hover:scale-105 shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:ring-accent flex items-center gap-2"
+                      >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
+                          </svg>
+                          Batch Matrix
+                      </button>
+                      {critiqueError && <p className="text-xs bg-danger text-text-light p-2 rounded-md">{critiqueError}</p>}
+                  </div>
+              )}
 
-            <div data-tour="comparison-area" className="grid grid-cols-1 lg:grid-cols-2 lg:gap-8 w-full">
-                <div data-tour="analysis-column">
-                  <AnalysisColumn key="left" analysisResult={leftAnalysis} onAnalysisComplete={setLeftAnalysis} onPreviewCaptured={setLeftPreviewImage} />
-                </div>
-                <AnalysisColumn key="right" analysisResult={rightAnalysis} onAnalysisComplete={setRightAnalysis} onPreviewCaptured={setRightPreviewImage} />
+              <div className="grid grid-cols-1 lg:grid-cols-2 lg:gap-8 w-full">
+                  <div data-tour="analysis-column">
+                    <AnalysisColumn key="left" analysisResult={leftAnalysis} onAnalysisComplete={setLeftAnalysis} onPreviewCaptured={setLeftPreviewImage} savedPreviewImage={leftPreviewImage} />
+                  </div>
+                  <AnalysisColumn key="right" analysisResult={rightAnalysis} onAnalysisComplete={setRightAnalysis} onPreviewCaptured={setRightPreviewImage} savedPreviewImage={rightPreviewImage} />
+              </div>
             </div>
           </div>
         )}
@@ -412,6 +431,44 @@ const App: React.FC = () => {
         onComplete={handleOnboardingComplete}
         onSkip={handleOnboardingSkip}
       />
+
+      <ProjectPanel
+        isOpen={showProjects}
+        onClose={() => setShowProjects(false)}
+        currentLeftFont={leftAnalysis}
+        currentRightFont={rightAnalysis}
+        currentCritique={critique}
+        leftPreview={leftPreviewImage || undefined}
+        rightPreview={rightPreviewImage || undefined}
+        onProjectChange={setActiveProject}
+      />
+
+      <TypeScaleBuilder
+        isOpen={showTypeScale}
+        onClose={() => setShowTypeScale(false)}
+        availableFonts={[leftAnalysis, rightAnalysis].filter((f): f is FontAnalysis => f !== null)}
+      />
+
+      <BatchCompatibilityMatrix
+        isOpen={showBatchMatrix}
+        onClose={() => setShowBatchMatrix(false)}
+        availableFonts={Array.from(new Map([
+          ...getHistory().map(h => [h.analysis.fontName, h.analysis] as [string, FontAnalysis]),
+          ...(leftAnalysis ? [[leftAnalysis.fontName, leftAnalysis] as [string, FontAnalysis]] : []),
+          ...(rightAnalysis ? [[rightAnalysis.fontName, rightAnalysis] as [string, FontAnalysis]] : [])
+        ]).values())}
+      />
+
+      {/* Toast Notification */}
+      {toast && (
+        <div className={`fixed bottom-6 left-1/2 transform -translate-x-1/2 z-50 px-6 py-3 rounded-lg shadow-lg animate-fade-in-up ${
+          toast.type === 'error' ? 'bg-red-500 text-white' :
+          toast.type === 'warning' ? 'bg-yellow-500 text-black' :
+          'bg-teal-dark text-text-light border border-teal-medium'
+        }`}>
+          <p className="text-sm font-medium">{toast.message}</p>
+        </div>
+      )}
 
       <footer className="w-full p-4 text-center text-secondary/70 text-sm border-t border-border">
         Powered by Google Gemini

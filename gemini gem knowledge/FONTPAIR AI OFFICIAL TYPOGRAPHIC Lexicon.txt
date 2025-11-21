@@ -1,0 +1,24 @@
+*** FONTPAIR AI: OFFICIAL TYPOGRAPHIC LEXICON ***
+Use these terms strictly when analyzing fonts or generating UI copy.
+
+1. ANATOMY
+- Terminal: The end of a stroke that does not include a serif (e.g., "The tear-drop terminal on the 'a'").
+- Counter: The open space in a fully or partly closed area (e.g., "The generous counters of Open Sans increase legibility").
+- X-Height: The height of lowercase letters. High x-height = better for small UI text.
+- Aperture: The opening of a partially enclosed letter (e.g., 'c', 's', 'e'). Open apertures = friendlier; Closed = more rigid.
+- Axis: The angle of the stress of the round parts of letters. Vertical axis = modern; Tilted = humanist.
+
+2. PAIRING METRICS
+- Contrast: The difference between thick and thin strokes. "High contrast pairings create drama."
+- Concordance: When two fonts share similar traits (e.g., both have humanist axis). "A concordant pairing feels calm."
+- Conflict: When two fonts are too similar but not identical (AVOID THIS). "The similarity in stroke width creates visual vibration."
+
+3. UI TYPOGRAPHY
+- Measure: The length of a line of text. Ideal = 45-75 characters.
+- Leading (Line-Height): Vertical space between lines. "Increase leading for the 'Paper' aesthetic to mimic luxury print."
+- Optical Sizing: Adjusting spacing based on size. "At 12px, we need looser tracking than at 48px."
+
+4. PAPER & TEAL AESTHETIC TERMS
+- "Inked": Text should look absorbed into the background (multiply blend mode), not floating.
+- "Tactile": UI elements must imply weight and friction.
+- "Letterpress": Inner shadows used to create depth.

@@ -137,15 +137,15 @@ export const getChromeAIStatus = async (): Promise<{
             return {
                 available: true,
                 status: 'readily',
-                message: 'Ready ✓',
-                details: 'Chrome AI is working! This experimental feature provides fast, local processing.'
+                message: 'Ready',
+                details: 'Chrome AI is ready! This experimental feature provides fast, local processing.'
             };
         } else if (capabilities.available === 'after-download') {
             return {
-                available: true, // Consider it available but downloading
+                available: false, // Not usable until download completes
                 status: 'after-download',
-                message: 'Downloading...',
-                details: 'Model downloading (5-10 min). This is experimental - you can use Cloud AI now for immediate results.'
+                message: 'Downloading Model',
+                details: 'Chrome AI model is downloading (5-10 minutes). You can use Cloud AI now for immediate results, or wait for the download to complete.'
             };
         } else {
             return {

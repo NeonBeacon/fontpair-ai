@@ -1,0 +1,61 @@
+*** FONTPAIR AI MONETIZATION & AFFILIATE GUIDE ***
+
+================================================================================
+1. ADOBE CREATIVE CLOUD (ADOBE FONTS)
+================================================================================
+   - Target: Subscriptions to Creative Cloud.
+   - Commission: High (usually 85% of first month or fixed bounty).
+   - Apply Here: https://www.adobe.com/affiliates.html (Partnerize)
+   - ID Format: Look for 'a_id' or 'tracking_id' in your links.
+
+================================================================================
+2. MYFONTS (MONOTYPE)
+================================================================================
+   - Target: Individual font licenses.
+   - Commission: ~10-15% of sale.
+   - Apply Here: https://www.myfonts.com/pages/affiliate (CJ Affiliate / Impact)
+   - ID Format: Usually 'refid=' or a specific tracking URL parameters.
+
+================================================================================
+3. CREATIVE MARKET
+================================================================================
+   - Target: Fonts, graphics, templates.
+   - Commission: ~10-15%.
+   - Apply Here: https://creativemarket.com/partners
+   - ID Format: '?u=USERNAME'
+
+================================================================================
+4. IMPLEMENTATION STRATEGY
+================================================================================
+   1. Apply to each affiliate program above.
+   2. Wait for approval (usually 1-7 days).
+   3. Open 'components/FontSuggestionCard.tsx'.
+   4. Replace the placeholder IDs in the 'AFFILIATE_IDS' constant:
+
+      const AFFILIATE_IDS = {
+          MYFONTS: 'refid=YOUR_ACTUAL_ID',
+          ADOBE: 'mv=affiliate&a_id=YOUR_ACTUAL_ID',
+          CREATIVE_MARKET: 'u=YOUR_ACTUAL_USERNAME'
+      };
+
+   5. Deploy your changes.
+   6. Traffic will instantly start tracking and earning commissions.
+
+================================================================================
+5. EXPECTED REVENUE MODEL
+================================================================================
+   - Adobe: $50-100+ per Creative Cloud signup
+   - MyFonts: 10-15% of font license ($5-50 per sale)
+   - Creative Market: 10-15% of purchase ($2-20 per sale)
+
+   With AI recommending premium fonts on every search, even modest traffic
+   (1000 searches/month) can generate meaningful affiliate income.
+
+================================================================================
+6. TRACKING & ANALYTICS
+================================================================================
+   - Each affiliate program provides its own dashboard.
+   - Consider adding UTM parameters for your own analytics.
+   - Monitor which fonts/sources convert best.
+
+================================================================================

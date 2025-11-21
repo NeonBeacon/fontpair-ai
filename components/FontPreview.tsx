@@ -104,7 +104,7 @@ const FontPreview = forwardRef<HTMLDivElement, FontPreviewProps>(({ file, google
             return;
           }
           try {
-            const font = opentype.parse(opentype.util.dataViewToBuffer(new DataView(arrayBuffer)));
+            const font = opentype.parse(arrayBuffer);
             onFontParsed(font);
             setParsedFont(font);
 

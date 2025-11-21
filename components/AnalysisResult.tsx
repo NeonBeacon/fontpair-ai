@@ -1,7 +1,11 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import type { FontAnalysis } from '../types';
 import { CheckIcon, InfoIcon, BusinessIcon, UsageIcon, WeightIcon, LicenseIcon, PairingIcon, AccessibilityIcon, SimilarFontsIcon, VariableFontIcon, ShareIcon, ExportIcon, CopyIcon, ExternalLinkIcon, HistoryIcon } from './Icons';
 import { exportAnalysisToPDF } from '../pdfExportService';
+import FontSourceBadge from './FontSourceBadge';
+import FontDNAModal from './FontDNAModal';
+import TypographyContextModal from './TypographyContextModal';
 
 interface AnalysisResultProps {
   result: FontAnalysis;
@@ -30,6 +34,8 @@ const AnalysisResult: React.FC<AnalysisResultProps> = ({ result, onReset, isShar
     const [loadedGoogleFonts, setLoadedGoogleFonts] = useState<Set<string>>(new Set());
     const [isExportingPDF, setIsExportingPDF] = useState(false);
     const [pdfError, setPdfError] = useState<string | null>(null);
+    const [showFontDNAModal, setShowFontDNAModal] = useState(false);
+    const [showContextModal, setShowContextModal] = useState(false);
 
     const loadGoogleFont = (fontName: string) => {
         if (!fontName || loadedGoogleFonts.has(fontName)) return;
@@ -121,8 +127,8 @@ const AnalysisResult: React.FC<AnalysisResultProps> = ({ result, onReset, isShar
         <div className="animate-fade-in space-y-6">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 p-4 bg-surface rounded-lg border-border">
                 <div>
-                    <div className="flex items-center gap-2 flex-wrap">
-                         <h2 className="text-3xl font-bold text-primary">{result.fontName}</h2>
+                    <div className="flex items-center gap-2 flex-wrap mb-2">
+                         <h2 className="text-3xl font-bold text-[#F5F2EB]">{result.fontName}</h2>
                          {result.isVariable && <VariableFontIcon aria-label="Variable Font" title="Variable Font" className="w-6 h-6 text-accent"/>}
                          {isCached && (
                             <span className="inline-flex items-center gap-1 bg-green-500/20 text-green-400 text-xs font-semibold px-2 py-1 rounded-full border border-green-500/30">
@@ -133,10 +139,11 @@ const AnalysisResult: React.FC<AnalysisResultProps> = ({ result, onReset, isShar
                             </span>
                          )}
                     </div>
-                     <p className="text-accent text-lg">{result.fontType}</p>
+                     <p className="text-accent text-lg mb-2">{result.fontType}</p>
                      {result.designer && result.designer.toLowerCase() !== 'unknown designer' && (
-                        <p className="text-secondary text-sm mt-1">by {result.designer}</p>
+                        <p className="text-secondary text-sm mb-2">by {result.designer}</p>
                      )}
+                     {result.fontSource && <FontSourceBadge fontSource={result.fontSource} fontFoundry={result.fontFoundry} />}
                 </div>
                 <div className="flex flex-col gap-2">
                     <div className="flex items-center gap-2 flex-wrap">
@@ -147,6 +154,22 @@ const AnalysisResult: React.FC<AnalysisResultProps> = ({ result, onReset, isShar
                         >
                             <ExportIcon className="w-4 h-4" />
                             {isExportingPDF ? 'Exporting...' : 'Export PDF'}
+                        </button>
+                        <button
+                            onClick={() => setShowFontDNAModal(true)}
+                            className="px-4 py-2 text-sm bg-accent/80 text-surface font-bold rounded-lg hover:bg-accent transition-colors flex items-center gap-2"
+                            title="Find fonts with similar visual DNA"
+                        >
+                            <SimilarFontsIcon className="w-4 h-4" />
+                            Find Similar
+                        </button>
+                        <button
+                            onClick={() => setShowContextModal(true)}
+                            className="px-4 py-2 text-sm bg-teal-medium text-text-light font-bold rounded-lg hover:bg-teal-dark transition-colors flex items-center gap-2"
+                            title="View typography trends and historical context"
+                        >
+                            <HistoryIcon className="w-4 h-4" />
+                            See Context
                         </button>
                         <button onClick={() => setShowExportModal(true)} className="px-4 py-2 text-sm bg-secondary/30 text-primary font-semibold rounded-lg hover:bg-secondary/50 transition-colors flex items-center gap-2"><ExportIcon className="w-4 h-4" />Design Tokens</button>
                         <button onClick={handleShare} className="px-4 py-2 text-sm bg-secondary/30 text-primary font-semibold rounded-lg hover:bg-secondary/50 transition-colors flex items-center gap-2"><ShareIcon className="w-4 h-4" />Share</button>
@@ -161,22 +184,22 @@ const AnalysisResult: React.FC<AnalysisResultProps> = ({ result, onReset, isShar
             </div>
           
             <InfoCard title="Analysis" icon={<InfoIcon aria-hidden="true" className="w-6 h-6 mr-2 text-accent" />}>
-                <p className="text-text-light leading-normal">{result.analysis}</p>
+                <p className="text-[#F5F2EB]/90 leading-normal">{result.analysis}</p>
             </InfoCard>
 
             {result.historicalContext && (
             <InfoCard title="Historical Context" icon={<HistoryIcon aria-hidden="true" className="w-6 h-6 mr-2 text-accent" />}>
-                <p className="text-text-light leading-normal text-sm">{result.historicalContext}</p>
+                <p className="text-[#F5F2EB]/90 leading-normal text-sm">{result.historicalContext}</p>
             </InfoCard>
             )}
 
             <InfoCard title="Accessibility & Legibility" icon={<AccessibilityIcon aria-hidden="true" className="w-6 h-6 mr-2 text-accent" />}>
-                 <p className="text-text-light leading-normal mb-3">{result.accessibility.analysis}</p>
+                 <p className="text-[#F5F2EB]/90 leading-normal mb-3">{result.accessibility.analysis}</p>
                  <ul className="space-y-2">
                     {result.accessibility.notes.map((note, index) => (
                         <li key={index} className="flex items-start">
                             <CheckIcon aria-hidden="true" className="w-5 h-5 mr-2 mt-0.5 text-accent flex-shrink-0" />
-                            <span className="text-text-light">{note}</span>
+                            <span className="text-[#F5F2EB]/90">{note}</span>
                         </li>
                     ))}
                  </ul>
@@ -196,7 +219,7 @@ const AnalysisResult: React.FC<AnalysisResultProps> = ({ result, onReset, isShar
                                     </a>
                                     <p style={{fontFamily: `'${pairing.secondary}', sans-serif`}} className="text-base text-secondary mt-2">The quick brown fox jumps over the lazy dog.</p>
                                 </div>
-                                <p className="text-text-light text-sm leading-relaxed">{pairing.rationale}</p>
+                                <p className="text-[#F5F2EB]/90 text-sm leading-relaxed">{pairing.rationale}</p>
                             </div>
                         )
                     })}
@@ -224,7 +247,7 @@ const AnalysisResult: React.FC<AnalysisResultProps> = ({ result, onReset, isShar
                                     )}
                                     <span className="text-xs text-secondary bg-surface px-2 py-1 rounded">{font.source}</span>
                                 </div>
-                                <p className="text-text-light text-sm leading-relaxed mt-1">{font.rationale}</p>
+                                <p className="text-[#F5F2EB]/90 text-sm leading-relaxed mt-1">{font.rationale}</p>
                             </div>
                         )
                     })}
@@ -234,24 +257,54 @@ const AnalysisResult: React.FC<AnalysisResultProps> = ({ result, onReset, isShar
 
             <div className="grid md:grid-cols-2 gap-6">
                 <InfoCard title="Recommended Usage" icon={<UsageIcon aria-hidden="true" className="w-6 h-6 mr-2 text-accent" />}>
-                    <ul className="space-y-2">{result.usageRecommendations.map((rec, index) => (<li key={index} className="flex items-start"><CheckIcon aria-hidden="true" className="w-5 h-5 mr-2 mt-0.5 text-accent flex-shrink-0" /><span className="text-text-light">{rec}</span></li>))}</ul>
+                    <ul className="space-y-2">{result.usageRecommendations.map((rec, index) => (<li key={index} className="flex items-start"><CheckIcon aria-hidden="true" className="w-5 h-5 mr-2 mt-0.5 text-accent flex-shrink-0" /><span className="text-[#F5F2EB]/90">{rec}</span></li>))}</ul>
                 </InfoCard>
                 <InfoCard title="Weight Recommendations" icon={<WeightIcon aria-hidden="true" className="w-6 h-6 mr-2 text-accent" />}>
-                    <ul className="space-y-2">{result.weightRecommendations.map((rec, index) => (<li key={index} className="flex items-start"><CheckIcon aria-hidden="true" className="w-5 h-5 mr-2 mt-0.5 text-accent flex-shrink-0" /><span className="text-text-light">{rec}</span></li>))}</ul>
+                    <ul className="space-y-2">{result.weightRecommendations.map((rec, index) => (<li key={index} className="flex items-start"><CheckIcon aria-hidden="true" className="w-5 h-5 mr-2 mt-0.5 text-accent flex-shrink-0" /><span className="text-[#F5F2EB]/90">{rec}</span></li>))}</ul>
                 </InfoCard>
             </div>
 
             {result.licenseInfo && (<InfoCard title="License & Usage Information" icon={<LicenseIcon aria-hidden="true" className="w-6 h-6 mr-2 text-accent" />}>
-                <p className="text-text-light leading-normal text-sm">{result.licenseInfo}</p>
+                <p className="text-[#F5F2EB]/90 leading-normal text-sm">{result.licenseInfo}</p>
+                {result.licensingNotes && (
+                    <div className="mt-3 pt-3 border-t border-border">
+                        <p className="text-accent font-semibold text-sm mb-1">Commercial Usage Notes:</p>
+                        <p className="text-[#F5F2EB]/90 leading-normal text-sm">{result.licensingNotes}</p>
+                    </div>
+                )}
             </InfoCard>)}
+
+            {/* Character Set Support */}
+            {result.characterSets && result.characterSets.length > 0 && (
+                <InfoCard title="Character Set Support" icon={
+                    <svg className="w-6 h-6 mr-2 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129" />
+                    </svg>
+                }>
+                    <div className="flex flex-wrap gap-2">
+                        {result.characterSets.map((charset, index) => (
+                            <span key={index} className="bg-teal-medium/30 text-text-light text-sm font-medium px-3 py-1.5 rounded-full">
+                                {charset}
+                            </span>
+                        ))}
+                    </div>
+                </InfoCard>
+            )}
+
+            {/* Release Year */}
+            {result.releaseYear && result.releaseYear.toLowerCase() !== 'unknown' && (
+                <div className="text-center text-secondary text-sm py-2">
+                    Originally released: <span className="font-semibold text-accent">{result.releaseYear}</span>
+                </div>
+            )}
 
             <InfoCard title="Business Suitability" icon={<BusinessIcon aria-hidden="true" className="w-6 h-6 mr-2 text-accent" />}>
                 <div className="flex flex-wrap gap-2">{result.businessSuitability.map((biz, index) => (<span key={index} className="bg-accent/20 text-accent text-sm font-medium px-4 py-2 rounded-full">{biz}</span>))}</div>
             </InfoCard>
             
-            {shareUrl && (
-                 <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 animate-fade-in" onClick={() => setShareUrl('')}>
-                    <div className="bg-surface rounded-lg p-6 w-full max-w-lg border border-border shadow-2xl" onClick={e => e.stopPropagation()}>
+            {shareUrl && createPortal(
+                 <div className="fixed inset-0 bg-black/60 flex items-start justify-center z-[9999] animate-fade-in p-4 pt-8 overflow-y-auto" onClick={() => setShareUrl('')}>
+                    <div className="bg-surface rounded-lg p-6 w-full max-w-lg border border-border shadow-2xl my-4" onClick={e => e.stopPropagation()}>
                         <h3 className="text-xl font-bold mb-4 text-primary">Share Analysis</h3>
                         <p className="text-secondary mb-4 text-sm">Copy this link to share a read-only version of this report.</p>
                         <div className="flex items-center gap-2">
@@ -261,11 +314,12 @@ const AnalysisResult: React.FC<AnalysisResultProps> = ({ result, onReset, isShar
                            </button>
                         </div>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
-             {showExportModal && (
-                 <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 animate-fade-in" onClick={() => setShowExportModal(false)}>
-                    <div className="bg-surface rounded-lg p-6 w-full max-w-lg border border-border shadow-2xl" onClick={e => e.stopPropagation()}>
+             {showExportModal && createPortal(
+                 <div className="fixed inset-0 bg-black/60 flex items-start justify-center z-[9999] animate-fade-in p-4 pt-8 overflow-y-auto" onClick={() => setShowExportModal(false)}>
+                    <div className="bg-surface rounded-lg p-6 w-full max-w-lg border border-border shadow-2xl my-4" onClick={e => e.stopPropagation()}>
                         <h3 className="text-xl font-bold mb-4 text-primary">Export Design Tokens</h3>
                         <div className="flex gap-2 mb-4 border border-border bg-background/50 p-1 rounded-lg">
                             <button onClick={() => setExportFormat('css')} className={`w-full rounded-md py-1 text-sm font-semibold ${exportFormat === 'css' ? 'bg-accent text-surface' : 'text-secondary hover:bg-border'}`}>CSS</button>
@@ -278,8 +332,23 @@ const AnalysisResult: React.FC<AnalysisResultProps> = ({ result, onReset, isShar
                             </button>
                         </div>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
+
+            {/* Font DNA Modal */}
+            <FontDNAModal
+                isOpen={showFontDNAModal}
+                onClose={() => setShowFontDNAModal(false)}
+                referenceFont={result}
+            />
+
+            {/* Typography Context Modal */}
+            <TypographyContextModal
+                isOpen={showContextModal}
+                onClose={() => setShowContextModal(false)}
+                fontAnalysis={result}
+            />
         </div>
     );
 };

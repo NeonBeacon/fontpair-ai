@@ -6,7 +6,7 @@ import { CloseIcon, HistoryIcon } from './Icons';
 interface HistoryPanelProps {
   isOpen: boolean;
   onClose: () => void;
-  onLoadAnalysis: (analysis: FontAnalysis) => void;
+  onLoadAnalysis: (item: HistoryItem, target: 'left' | 'right') => void;
 }
 
 const TrashIcon = (props: React.SVGProps<SVGSVGElement>) => (
@@ -18,6 +18,7 @@ const TrashIcon = (props: React.SVGProps<SVGSVGElement>) => (
 const HistoryPanel: React.FC<HistoryPanelProps> = ({ isOpen, onClose, onLoadAnalysis }) => {
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [hoveredItemId, setHoveredItemId] = useState<string | null>(null);
+  const [targetColumn, setTargetColumn] = useState<'left' | 'right'>('left');
 
   useEffect(() => {
     if (isOpen) {
@@ -40,7 +41,7 @@ const HistoryPanel: React.FC<HistoryPanelProps> = ({ isOpen, onClose, onLoadAnal
   };
 
   const handleLoadAnalysis = (item: HistoryItem) => {
-    onLoadAnalysis(item.analysis);
+    onLoadAnalysis(item, targetColumn);
     onClose();
   };
 
@@ -61,13 +62,36 @@ const HistoryPanel: React.FC<HistoryPanelProps> = ({ isOpen, onClose, onLoadAnal
             <HistoryIcon className="w-6 h-6 text-accent" />
             <h2 className="text-2xl font-bold text-text-light">Analysis History</h2>
           </div>
-          <button
-            onClick={onClose}
-            className="text-secondary hover:text-primary transition-colors"
-            aria-label="Close"
-          >
-            <CloseIcon className="w-6 h-6" />
-          </button>
+
+          {/* Target Column Toggle */}
+          <div className="flex items-center gap-4">
+            <div className="flex bg-teal-dark rounded-lg p-1 border border-teal-light/10">
+              <button
+                onClick={() => setTargetColumn('left')}
+                className={`px-3 py-1 rounded-md text-xs font-bold transition-all ${
+                  targetColumn === 'left' ? 'bg-accent text-white' : 'text-teal-light hover:text-white'
+                }`}
+              >
+                Left
+              </button>
+              <button
+                onClick={() => setTargetColumn('right')}
+                className={`px-3 py-1 rounded-md text-xs font-bold transition-all ${
+                  targetColumn === 'right' ? 'bg-accent text-white' : 'text-teal-light hover:text-white'
+                }`}
+              >
+                Right
+              </button>
+            </div>
+
+            <button
+              onClick={onClose}
+              className="text-secondary hover:text-primary transition-colors"
+              aria-label="Close"
+            >
+              <CloseIcon className="w-6 h-6" />
+            </button>
+          </div>
         </div>
 
         {/* Content */}

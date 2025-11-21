@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import type { FontSuggestionResult } from '../types';
 import { suggestFonts } from '../services/geminiService';
-import { getPopularGoogleFonts } from '../services/googleFontsService';
 import CategorySelector from './CategorySelector';
 import FontSuggestionCard from './FontSuggestionCard';
+import IndieSpotlight from './IndieSpotlight';
 import Loader from './Loader';
 
 interface FontSuggestionViewProps {
@@ -38,10 +38,6 @@ const FontSuggestionView: React.FC<FontSuggestionViewProps> = ({ onAnalyzeFont }
         setResults(null);
 
         try {
-            // Fetch Google Fonts list
-            const fonts = await getPopularGoogleFonts(800);
-            const fontNames = fonts.map(f => f.family);
-
             // Build request
             const request = {
                 description: description.trim(),
@@ -52,8 +48,8 @@ const FontSuggestionView: React.FC<FontSuggestionViewProps> = ({ onAnalyzeFont }
                 maxResults: 5
             };
 
-            // Call AI service
-            const suggestionsResult = await suggestFonts(request, fontNames);
+            // Call AI service (no longer restricted to Google Fonts list)
+            const suggestionsResult = await suggestFonts(request);
             setResults(suggestionsResult);
 
         } catch (err) {
@@ -80,7 +76,7 @@ const FontSuggestionView: React.FC<FontSuggestionViewProps> = ({ onAnalyzeFont }
             <div className="mb-8 text-center">
                 <h1 className="text-3xl heading-embossed mb-2">Find Perfect Fonts</h1>
                 <p className="text-text-dark">
-                    Describe your project and let AI recommend the best Google Fonts
+                    Describe your project and let AI recommend professional typefaces from Google Fonts, Adobe, and beyond
                 </p>
             </div>
 
@@ -197,6 +193,11 @@ const FontSuggestionView: React.FC<FontSuggestionViewProps> = ({ onAnalyzeFont }
                             />
                         ))}
                     </div>
+
+                    {/* Indie Foundry Spotlight - "Still haven't found it?" catcher */}
+                    {selectedThemes.length > 0 && (
+                        <IndieSpotlight activeMoods={selectedThemes} />
+                    )}
 
                     {results.suggestions.length === 0 && (
                         <div className="text-center py-12">
