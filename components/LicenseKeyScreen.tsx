@@ -3,9 +3,9 @@ import { CadmusLogoIcon, CheckIcon } from './Icons';
 import {
     validateLicenseKey,
     isValidLicenseFormat,
-    formatLicenseKey,
     type ValidationResult
 } from '../services/licenseService';
+import { setUserTier } from '../services/tierService';
 
 interface LicenseKeyScreenProps {
     onLicenseValidated: () => void;
@@ -16,6 +16,11 @@ const LicenseKeyScreen: React.FC<LicenseKeyScreenProps> = ({ onLicenseValidated 
     const [isValidating, setIsValidating] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [validationResult, setValidationResult] = useState<ValidationResult | null>(null);
+
+    const handleContinueFree = () => {
+        setUserTier('free');
+        onLicenseValidated();
+    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -43,7 +48,7 @@ const LicenseKeyScreen: React.FC<LicenseKeyScreenProps> = ({ onLicenseValidated 
             setValidationResult(result);
 
             if (result.valid) {
-                // Success! Give user feedback then redirect
+                // Success! Tier is set to 'professional' inside validateLicenseKey
                 setTimeout(() => {
                     onLicenseValidated();
                 }, 1500);
@@ -84,122 +89,113 @@ const LicenseKeyScreen: React.FC<LicenseKeyScreenProps> = ({ onLicenseValidated 
     };
 
     return (
-        <div className="min-h-screen bg-background flex items-center justify-center p-4">
-            <div className="max-w-md w-full">
+        <div className="min-h-screen bg-background flex items-center justify-center p-4 overflow-y-auto">
+            <div className="max-w-2xl w-full my-8">
                 {/* Logo */}
                 <div className="text-center mb-8">
                     <div className="flex justify-center mb-6">
-                        <CadmusLogoIcon className="w-auto icon-embossed" style={{ height: '200px', color: '#8B7355' }} />
+                        <CadmusLogoIcon className="w-auto icon-embossed" style={{ height: '160px', color: '#8B7355' }} />
                     </div>
+                    <h1 className="text-3xl font-bold text-primary mb-2">Welcome to FontPair AI</h1>
+                    <p className="text-secondary">Choose how you want to proceed</p>
                 </div>
 
-                {/* License Key Form */}
-                <div className="bg-teal-dark rounded-lg shadow-2xl p-8 border border-teal-light/10">
-                    <h2 className="text-xl font-semibold text-[#F2EFE8] mb-2">Enter License Key</h2>
-                    <p className="text-sm text-teal-light mb-6">
-                        Please enter your license key to activate FontPair AI on this device.
-                    </p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Free Tier Card */}
+                    <div className="bg-surface border border-border rounded-xl p-6 flex flex-col hover:border-secondary transition-colors">
+                        <h3 className="text-xl font-bold text-primary mb-2">Free Starter</h3>
+                        <div className="text-3xl font-bold text-primary mb-4">£0</div>
+                        <p className="text-sm text-secondary mb-6">Perfect for hobbyists and quick checks.</p>
+                        
+                        <ul className="space-y-3 mb-8 flex-grow">
+                            <li className="flex items-center gap-2 text-sm text-primary">
+                                <CheckIcon className="w-4 h-4 text-green-600" />
+                                <span>Single font analysis</span>
+                            </li>
+                            <li className="flex items-center gap-2 text-sm text-primary">
+                                <CheckIcon className="w-4 h-4 text-green-600" />
+                                <span>3 analyses per day</span>
+                            </li>
+                            <li className="flex items-center gap-2 text-sm text-primary">
+                                <CheckIcon className="w-4 h-4 text-green-600" />
+                                <span>Basic glyph comparison</span>
+                            </li>
+                        </ul>
 
-                    <form onSubmit={handleSubmit} className="space-y-4">
-                        <div>
-                            <label htmlFor="license-key" className="block text-sm font-medium text-[#F2EFE8] mb-2">
-                                License Key
-                            </label>
+                        <button
+                            onClick={handleContinueFree}
+                            className="w-full py-3 bg-secondary/20 text-primary font-semibold rounded-lg hover:bg-secondary/30 transition-colors"
+                        >
+                            Continue with Free
+                        </button>
+                    </div>
+
+                    {/* Pro Tier Card */}
+                    <div className="bg-teal-dark border-2 border-accent rounded-xl p-6 flex flex-col relative overflow-hidden">
+                        <div className="absolute top-0 right-0 bg-accent text-surface text-xs font-bold px-3 py-1 rounded-bl-lg">
+                            RECOMMENDED
+                        </div>
+                        
+                        <h3 className="text-xl font-bold text-[#F2EFE8] mb-2">Professional</h3>
+                        <div className="text-3xl font-bold text-[#F2EFE8] mb-4">£48.99</div>
+                        <p className="text-sm text-teal-light mb-6">For designers and agencies.</p>
+
+                        <ul className="space-y-3 mb-8 flex-grow">
+                             <li className="flex items-center gap-2 text-sm text-teal-light">
+                                <CheckIcon className="w-4 h-4 text-accent" />
+                                <span>Unlimited analyses</span>
+                            </li>
+                            <li className="flex items-center gap-2 text-sm text-teal-light">
+                                <CheckIcon className="w-4 h-4 text-accent" />
+                                <span>AI Pairing Critique & Scoring</span>
+                            </li>
+                            <li className="flex items-center gap-2 text-sm text-teal-light">
+                                <CheckIcon className="w-4 h-4 text-accent" />
+                                <span>Batch Analysis & Projects</span>
+                            </li>
+                            <li className="flex items-center gap-2 text-sm text-teal-light">
+                                <CheckIcon className="w-4 h-4 text-accent" />
+                                <span>No Watermark PDF Export</span>
+                            </li>
+                        </ul>
+
+                        <form onSubmit={handleSubmit} className="space-y-3">
                             <input
-                                id="license-key"
                                 type="text"
                                 value={licenseKey}
                                 onChange={handleKeyChange}
-                                placeholder="XXXX-XXXX-XXXX-XXXX"
+                                placeholder="Enter License Key"
                                 disabled={isValidating}
-                                className="w-full px-4 py-3 bg-background border border-border rounded-md text-text-dark placeholder-secondary/50 focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed font-mono text-sm"
-                                autoComplete="off"
-                                autoFocus
+                                className="w-full px-3 py-2 bg-black/20 border border-teal-medium rounded-md text-[#F2EFE8] placeholder-teal-light/30 focus:outline-none focus:ring-1 focus:ring-accent text-sm"
                             />
-                        </div>
+                            
+                            {error && <p className="text-xs text-red-300">{error}</p>}
+                            {validationResult?.valid && <p className="text-xs text-green-300">Activated! Redirecting...</p>}
 
-                        {/* Error Message */}
-                        {error && (
-                            <div className="bg-red-500/10 border border-red-500/20 rounded-md p-3">
-                                <p className="text-sm text-red-300">{error}</p>
-                            </div>
-                        )}
-
-                        {/* Success Message */}
-                        {validationResult?.valid && (
-                            <div className="bg-green-500/10 border border-green-500/20 rounded-md p-3 flex items-center gap-2">
-                                <CheckIcon className="w-5 h-5 text-green-400" />
-                                <div>
-                                    <p className="text-sm text-green-300 font-medium">License Activated!</p>
-                                    <p className="text-xs text-green-300/70 mt-1">
-                                        {validationResult.message || 'Redirecting to app...'}
-                                    </p>
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Submit Button */}
-                        <button
-                            type="submit"
-                            disabled={isValidating || !licenseKey.trim() || validationResult?.valid}
-                            className="w-full px-4 py-3 bg-accent text-surface font-semibold rounded-md hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity flex items-center justify-center gap-2"
-                        >
-                            {isValidating ? (
-                                <>
-                                    <span className="animate-spin">⏳</span>
-                                    <span>Validating...</span>
-                                </>
-                            ) : validationResult?.valid ? (
-                                <>
-                                    <CheckIcon className="w-5 h-5" />
-                                    <span>Activated</span>
-                                </>
-                            ) : (
-                                <span>Activate License</span>
-                            )}
-                        </button>
-                    </form>
-
-                    {/* Additional Info */}
-                    <div className="mt-6 pt-6 border-t border-teal-light/20">
-                        <div className="text-xs text-teal-light/70 space-y-2">
-                            <p>
-                                <strong className="text-[#F2EFE8]">Don't have a license?</strong>
-                                <br />
-                                <a
-                                    href="https://fontpair.ai/purchase"
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-accent hover:underline"
-                                >
-                                    Purchase a license key here
-                                </a>
-                            </p>
-                            <p>
-                                <strong className="text-[#F2EFE8]">Lost your key?</strong>
-                                <br />
-                                Contact support at{' '}
-                                <a
-                                    href="mailto:support@fontpair.ai"
-                                    className="text-accent hover:underline"
-                                >
-                                    support@fontpair.ai
-                                </a>
-                            </p>
-                            <p className="pt-2 text-teal-light/50">
-                                Each license key can be used on up to 3 devices. You can manage your devices in the settings after activation.
-                            </p>
+                            <button
+                                type="submit"
+                                disabled={isValidating || !licenseKey.trim() || validationResult?.valid}
+                                className="w-full py-3 bg-accent text-surface font-bold rounded-lg hover:bg-accent/90 transition-colors flex justify-center gap-2"
+                            >
+                                {isValidating ? 'Validating...' : 'Activate License'}
+                            </button>
+                        </form>
+                        
+                        <div className="mt-3 text-center">
+                             <a
+                                href="https://fontpair.ai/purchase"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-xs text-teal-light underline hover:text-white"
+                            >
+                                Buy a license key
+                            </a>
                         </div>
                     </div>
                 </div>
-
-                {/* Privacy Notice */}
-                <div className="mt-6 text-center">
-                    <p className="text-xs text-secondary/50">
-                        Your license key and device information are stored securely.
-                        <br />
-                        We do not collect any personal data beyond what's necessary for license validation.
-                    </p>
+                
+                <div className="mt-8 text-center text-xs text-secondary/60">
+                    Your license status is stored locally on your device.
                 </div>
             </div>
         </div>

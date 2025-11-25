@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import FingerprintJS from '@fingerprintjs/fingerprintjs';
+import { setUserTier } from './tierService';
 
 // Initialize Supabase client
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
@@ -213,6 +214,9 @@ export const validateLicenseKey = async (
                 maxDevices: result.max_devices
             });
 
+            // Update tier to professional
+            setUserTier('professional');
+
             // Convert 'success' to 'valid' for consistency with existing code
             return {
                 valid: true,
@@ -222,6 +226,9 @@ export const validateLicenseKey = async (
                 message: result.message
             };
         }
+
+        // Update tier to free on failure
+        setUserTier('free');
 
         // Convert 'success: false' to 'valid: false' for consistency
         return {
@@ -249,6 +256,7 @@ export const checkActivationStatus = async (): Promise<ValidationResult> => {
     const stored = getStoredLicense();
 
     if (!stored) {
+        setUserTier('free');
         return {
             valid: false,
             error: 'No license found',
@@ -265,6 +273,7 @@ export const checkActivationStatus = async (): Promise<ValidationResult> => {
             const daysSince = (now.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24);
 
             if (daysSince < 30) {
+                setUserTier('professional');
                 return {
                     valid: true,
                     licenseKey: stored.licenseKey,
@@ -273,6 +282,7 @@ export const checkActivationStatus = async (): Promise<ValidationResult> => {
             }
         }
 
+        setUserTier('free');
         return {
             valid: false,
             error: 'Unable to verify license. Please check your internet connection.',
@@ -282,6 +292,7 @@ export const checkActivationStatus = async (): Promise<ValidationResult> => {
 
     // Check if needs revalidation
     if (!needsRevalidation()) {
+        setUserTier('professional');
         return {
             valid: true,
             licenseKey: stored.licenseKey,
@@ -291,7 +302,13 @@ export const checkActivationStatus = async (): Promise<ValidationResult> => {
     }
 
     // Revalidate with server
-    return await validateLicenseKey(stored.licenseKey, stored.deviceFingerprint);
+    const result = await validateLicenseKey(stored.licenseKey, stored.deviceFingerprint);
+    if (result.valid) {
+        setUserTier('professional');
+    } else {
+        setUserTier('free');
+    }
+    return result;
 };
 
 /**
@@ -337,6 +354,7 @@ export const deactivateDevice = async (
 
         if (result.success) {
             clearStoredLicense();
+            setUserTier('free');
         }
 
         return result;

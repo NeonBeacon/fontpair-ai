@@ -15,6 +15,7 @@ import {
     getCachedAnalysis,
     setCachedAnalysis
 } from '../utils/fontCache';
+import { canPerformAnalysis, incrementDailyAnalysisCount, isProfessional } from '../services/tierService';
 
 declare var html2canvas: any;
 
@@ -71,6 +72,13 @@ const AnalysisColumn: React.FC<AnalysisColumnProps> = ({ analysisResult, onAnaly
 
     const handleAnalyzeClick = async () => {
         if (!canAnalyze) return;
+
+        // Check daily limit for free users
+        const analysisCheck = canPerformAnalysis();
+        if (!analysisCheck.allowed) {
+            setError(analysisCheck.message || "Daily limit reached.");
+            return;
+        }
 
         setIsLoading(true);
         setError(null);
@@ -195,6 +203,11 @@ const AnalysisColumn: React.FC<AnalysisColumnProps> = ({ analysisResult, onAnaly
 
             // Save to history if analysis was successful
             if (result.status === 'success') {
+                // Increment daily count for free users
+                if (!isProfessional()) {
+                    incrementDailyAnalysisCount();
+                }
+
                 // Create thumbnail (200px wide)
                 const thumbnailCanvas = document.createElement('canvas');
                 const thumbnailWidth = 200;

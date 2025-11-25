@@ -1,7 +1,7 @@
 import type { FontAnalysis } from './types';
+import { getTierLimits } from './services/tierService';
 
 const STORAGE_KEY = 'cadmus_analysis_history';
-const MAX_HISTORY_ITEMS = 20;
 
 export interface HistoryItem {
   id: string;
@@ -10,9 +10,13 @@ export interface HistoryItem {
   thumbnail?: string;
 }
 
+function getMaxHistoryItems(): number {
+  return getTierLimits().historyLimit;
+}
+
 export function saveToHistory(analysis: FontAnalysis, thumbnail?: string): void {
   try {
-    const history = getHistory();
+    const history = getAllHistory(); // Get raw history
     const newItem: HistoryItem = {
       id: `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       analysis,
@@ -23,8 +27,12 @@ export function saveToHistory(analysis: FontAnalysis, thumbnail?: string): void 
     // Add to beginning of array
     history.unshift(newItem);
 
-    // Keep only the most recent MAX_HISTORY_ITEMS
-    const trimmedHistory = history.slice(0, MAX_HISTORY_ITEMS);
+    // Keep only the most recent limit
+    // Note: We might want to persist more data than visible in case they upgrade later,
+    // but for now we'll cap storage at 100 (max pro limit) to avoid unlimited growth,
+    // and visual display will be capped by the current tier limit.
+    const maxStorage = 100; 
+    const trimmedHistory = history.slice(0, maxStorage);
 
     localStorage.setItem(STORAGE_KEY, JSON.stringify(trimmedHistory));
   } catch (error) {
@@ -32,7 +40,8 @@ export function saveToHistory(analysis: FontAnalysis, thumbnail?: string): void 
   }
 }
 
-export function getHistory(): HistoryItem[] {
+// Internal helper to get all stored history without slicing by tier
+function getAllHistory(): HistoryItem[] {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (!stored) return [];
@@ -45,9 +54,15 @@ export function getHistory(): HistoryItem[] {
   }
 }
 
+export function getHistory(): HistoryItem[] {
+  const history = getAllHistory();
+  const limit = getMaxHistoryItems();
+  return history.slice(0, limit);
+}
+
 export function deleteFromHistory(id: string): void {
   try {
-    const history = getHistory();
+    const history = getAllHistory();
     const filtered = history.filter(item => item.id !== id);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(filtered));
   } catch (error) {

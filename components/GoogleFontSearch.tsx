@@ -65,7 +65,7 @@ const GoogleFontSearch: React.FC<GoogleFontSearchProps> = ({ value, onChange }) 
         onChange={handleInputChange}
         onFocus={() => inputValue && suggestions.length > 0 && setShowSuggestions(true)}
         placeholder="e.g., Roboto, Lato, Montserrat"
-        className="w-full bg-background border border-border rounded-md p-3 text-primary focus:ring-2 focus:ring-accent focus:border-accent transition"
+        className="w-full bg-background border border-border rounded-md p-3 text-text-dark focus:ring-2 focus:ring-accent focus:border-accent transition"
         autoComplete="off"
       />
       {showSuggestions && suggestions.length > 0 && (

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { CadmusLogoIcon, SparklesIcon, HistoryIcon, SettingsIcon } from './components/Icons';
+import { CadmusLogoIcon, SparklesIcon, HistoryIcon, SettingsIcon, LockIcon } from './components/Icons';
 import AnalysisColumn from './components/AnalysisColumn';
 import type { FontAnalysis, PairingCritique, GlyphComparisonResult, AIMode, Project } from './types';
 import { critiqueFontPairing, compareGlyphs } from './services/geminiService';
@@ -14,9 +14,14 @@ import PaperTexture from './components/PaperTexture';
 import ProjectPanel from './components/ProjectPanel';
 import TypeScaleBuilder from './components/TypeScaleBuilder';
 import BatchCompatibilityMatrix from './components/BatchCompatibilityMatrix';
+import KeyboardShortcutsModal from './components/KeyboardShortcutsModal';
+import LockedFeatureOverlay from './components/LockedFeatureOverlay';
+import UpgradePrompt from './components/UpgradePrompt';
+import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { getAIMode, setAIMode, getAPIKey, validateAIMode, isChromeAIAvailable } from './utils/aiSettings';
 import { checkActivationStatus } from './services/licenseService';
 import { getHistory } from './historyService';
+import { getUserTier, isProfessional, canPerformAnalysis, type UserTier } from './services/tierService';
 
 type ViewMode = 'comparison' | 'suggestions';
 
@@ -35,6 +40,7 @@ const App: React.FC = () => {
   const [leftPreviewImage, setLeftPreviewImage] = useState<string | null>(null);
   const [rightPreviewImage, setRightPreviewImage] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
+  const [showShortcuts, setShowShortcuts] = useState(false);
   const [aiMode, setAiModeState] = useState<AIMode>('cloud');
   const [chromeAIAvailable, setChromeAIAvailable] = useState(false);
   const [hasAPIKey, setHasAPIKey] = useState(false);
@@ -45,6 +51,38 @@ const App: React.FC = () => {
   const [activeProject, setActiveProject] = useState<Project | null>(null);
   const [showTypeScale, setShowTypeScale] = useState(false);
   const [showBatchMatrix, setShowBatchMatrix] = useState(false);
+  
+  // Tier State
+  const [userTier, setUserTierState] = useState<UserTier>(getUserTier());
+  const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
+  const [upgradeFeature, setUpgradeFeature] = useState<string>('');
+
+  const checkFeatureAccess = (feature: string): boolean => {
+    if (isProfessional()) return true;
+    setUpgradeFeature(feature);
+    setShowUpgradePrompt(true);
+    return false;
+  };
+
+  // Keyboard Shortcuts Hook
+  useKeyboardShortcuts({
+    onToggleHelp: () => setShowShortcuts(prev => !prev),
+    onOpenSettings: () => setShowSettings(true),
+    onToggleProjects: () => setShowProjects(prev => !prev),
+    onFindFonts: () => setViewMode('suggestions'),
+    onRestartTour: () => setShowOnboarding(true),
+    onCloseModal: () => {
+      setShowSettings(false);
+      setShowHistory(false);
+      setShowProjects(false);
+      setShowShortcuts(false);
+      setShowTypeScale(false);
+      setShowBatchMatrix(false);
+      setShowUpgradePrompt(false);
+      setCritique(null);
+      setGlyphComparison(null);
+    }
+  });
 
   // Check license on mount
   useEffect(() => {
@@ -53,6 +91,8 @@ const App: React.FC = () => {
       try {
         const result = await checkActivationStatus();
         setIsLicenseValid(result.valid);
+        // Update local tier state after check
+        setUserTierState(getUserTier());
       } catch (error) {
         console.error('License check failed:', error);
         setIsLicenseValid(false);
@@ -210,6 +250,7 @@ const App: React.FC = () => {
 
   const handleLicenseValidated = () => {
     setIsLicenseValid(true);
+    setUserTierState(getUserTier());
   };
 
   const handleAnalyzeFontFromSuggestions = (fontName: string) => {
@@ -267,6 +308,16 @@ const App: React.FC = () => {
 
           {/* Right: Action Buttons with paper inset effect */}
           <div className="flex items-center gap-3">
+            {!isProfessional() && (
+              <div className="hidden md:flex items-center gap-2 mr-2 text-xs text-teal-light/70 bg-black/10 px-3 py-1.5 rounded-full">
+                <span>{canPerformAnalysis().remaining}/3 analyses today</span>
+                {canPerformAnalysis().remaining === 0 && (
+                  <button onClick={() => setShowUpgradePrompt(true)} className="text-accent font-bold hover:underline">
+                    Upgrade
+                  </button>
+                )}
+              </div>
+            )}
             <button
               data-tour="find-fonts-button"
               onClick={() => setViewMode(viewMode === 'comparison' ? 'suggestions' : 'comparison')}
@@ -341,11 +392,14 @@ const App: React.FC = () => {
               {leftAnalysis && rightAnalysis && (
                   <div className="sticky top-4 z-20 flex justify-center gap-3 mb-6 flex-wrap">
                       <button
-                          onClick={handleCritique}
-                          disabled={isCritiquing}
-                          className="px-6 py-3 bg-accent text-text-light font-bold rounded-full hover:opacity-90 disabled:bg-secondary disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 transform hover:scale-105 shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:ring-accent flex items-center gap-2"
+                          onClick={() => {
+                            if (!checkFeatureAccess('Full Pairing Critique')) return;
+                            handleCritique();
+                          }}
+                          disabled={isCritiquing || !isProfessional()}
+                          className={`px-6 py-3 bg-accent text-text-light font-bold rounded-full hover:opacity-90 disabled:bg-secondary disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 transform hover:scale-105 shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:ring-accent flex items-center gap-2 ${!isProfessional() ? 'opacity-70' : ''}`}
                       >
-                          <SparklesIcon className={`w-5 h-5 ${isCritiquing ? 'animate-spin' : ''}`} />
+                          {!isProfessional() ? <LockIcon className="w-4 h-4" /> : <SparklesIcon className={`w-5 h-5 ${isCritiquing ? 'animate-spin' : ''}`} />}
                           {isCritiquing ? 'Critiquing...' : 'Critique Pairing'}
                       </button>
                       <button
@@ -357,21 +411,33 @@ const App: React.FC = () => {
                           {isComparingGlyphs ? 'Comparing...' : 'Compare Glyphs'}
                       </button>
                       <button
-                          onClick={() => setShowTypeScale(true)}
-                          className="px-6 py-3 bg-teal-medium text-text-light font-bold rounded-full hover:bg-teal-dark transition-all duration-300 transform hover:scale-105 shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:ring-teal-light flex items-center gap-2"
+                          onClick={() => {
+                            if (!checkFeatureAccess('Type Scale Builder')) return;
+                            setShowTypeScale(true);
+                          }}
+                          disabled={!isProfessional()}
+                          className={`px-6 py-3 bg-teal-medium text-text-light font-bold rounded-full hover:bg-teal-dark transition-all duration-300 transform hover:scale-105 shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:ring-teal-light flex items-center gap-2 ${!isProfessional() ? 'opacity-70 cursor-not-allowed' : ''}`}
                       >
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
-                          </svg>
+                          {!isProfessional() ? <LockIcon className="w-4 h-4" /> : (
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                            </svg>
+                          )}
                           Type Scale
                       </button>
                       <button
-                          onClick={() => setShowBatchMatrix(true)}
-                          className="px-6 py-3 bg-surface text-accent font-bold rounded-full border-2 border-accent hover:bg-accent hover:text-surface transition-all duration-300 transform hover:scale-105 shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:ring-accent flex items-center gap-2"
+                          onClick={() => {
+                            if (!checkFeatureAccess('Batch Analysis')) return;
+                            setShowBatchMatrix(true);
+                          }}
+                          disabled={!isProfessional()}
+                          className={`px-6 py-3 bg-surface text-accent font-bold rounded-full border-2 border-accent hover:bg-accent hover:text-surface transition-all duration-300 transform hover:scale-105 shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:ring-accent flex items-center gap-2 ${!isProfessional() ? 'opacity-70 cursor-not-allowed' : ''}`}
                       >
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
-                          </svg>
+                          {!isProfessional() ? <LockIcon className="w-4 h-4" /> : (
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
+                            </svg>
+                          )}
                           Batch Matrix
                       </button>
                       {critiqueError && <p className="text-xs bg-danger text-text-light p-2 rounded-md">{critiqueError}</p>}
@@ -382,7 +448,19 @@ const App: React.FC = () => {
                   <div data-tour="analysis-column">
                     <AnalysisColumn key="left" analysisResult={leftAnalysis} onAnalysisComplete={setLeftAnalysis} onPreviewCaptured={setLeftPreviewImage} savedPreviewImage={leftPreviewImage} />
                   </div>
-                  <AnalysisColumn key="right" analysisResult={rightAnalysis} onAnalysisComplete={setRightAnalysis} onPreviewCaptured={setRightPreviewImage} savedPreviewImage={rightPreviewImage} />
+                  <div className="relative">
+                    {!isProfessional() && (
+                        <LockedFeatureOverlay 
+                            featureName="Pairing Analysis" 
+                            upgradeMessage="Upgrade to Professional to unlock dual-font analysis and AI pairing critiques."
+                            onUpgradeClick={() => {
+                                setUpgradeFeature('Dual Analysis');
+                                setShowUpgradePrompt(true);
+                            }}
+                        />
+                    )}
+                    <AnalysisColumn key="right" analysisResult={rightAnalysis} onAnalysisComplete={setRightAnalysis} onPreviewCaptured={setRightPreviewImage} savedPreviewImage={rightPreviewImage} />
+                  </div>
               </div>
             </div>
           </div>
@@ -426,6 +504,12 @@ const App: React.FC = () => {
         }}
       />
 
+      <UpgradePrompt 
+        isOpen={showUpgradePrompt} 
+        onClose={() => setShowUpgradePrompt(false)} 
+        feature={upgradeFeature} 
+      />
+
       <OnboardingTour
         isOpen={showOnboarding}
         onComplete={handleOnboardingComplete}
@@ -457,6 +541,11 @@ const App: React.FC = () => {
           ...(leftAnalysis ? [[leftAnalysis.fontName, leftAnalysis] as [string, FontAnalysis]] : []),
           ...(rightAnalysis ? [[rightAnalysis.fontName, rightAnalysis] as [string, FontAnalysis]] : [])
         ]).values())}
+      />
+
+      <KeyboardShortcutsModal
+        isOpen={showShortcuts}
+        onClose={() => setShowShortcuts(false)}
       />
 
       {/* Toast Notification */}

@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome to FontPair AI</title>
+    <style>
+        /* Paper & Teal Design System */
+        :root {
+            --bg-paper: #F5F2EB;
+            --text-ink: #1A3431;
+            --accent-orange: #FF8E24;
+            --card-bg: #1A3431;
+            --card-border: rgba(255, 255, 255, 0.1);
+        }
+        body {
+            font-family: 'Georgia', 'Times New Roman', serif;
+            background-color: var(--bg-paper);
+            color: var(--text-ink);
+            margin: 0;
+            padding: 40px;
+            line-height: 1.6;
+            /* Paper Grain Texture */
+            background-image: radial-gradient(#2D4E4A 0.5px, transparent 0.5px);
+            background-size: 20px 20px;
+        }
+
+        /* Logo Styling (Top Left) */
+        .header {
+            margin-bottom: 60px;
+        }
+        .logo {
+            font-size: 28px;
+            font-weight: bold;
+            letter-spacing: -0.5px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .logo-font { color: var(--text-ink); }
+        .logo-plus { color: var(--accent-orange); font-weight: 900; }
+        .logo-pair { color: var(--accent-orange); }
+
+        /* Main Content Card */
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        .card {
+            background: var(--card-bg);
+            color: #F5F2EB;
+            padding: 40px;
+            border-radius: 16px;
+            box-shadow: 0 20px 40px -10px rgba(0,0,0,0.3);
+            border: 1px solid var(--card-border);
+            text-align: center;
+        }
+        h1 {
+            font-size: 24px;
+            margin-bottom: 10px;
+            color: #F5F2EB;
+        }
+        .subtitle {
+            color: rgba(245, 242, 235, 0.7);
+            font-size: 16px;
+            margin-bottom: 30px;
+        }
+        .btn {
+            display: inline-block;
+            background: var(--accent-orange);
+            color: #1A3431;
+            text-decoration: none;
+            padding: 16px 32px;
+            font-weight: bold;
+            border-radius: 8px;
+            font-family: sans-serif;
+            transition: transform 0.2s;
+        }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(255, 142, 36, 0.4); }
+
+        /* Key Section */
+        .key-section {
+            margin-top: 40px;
+            padding-top: 30px;
+            border-top: 1px solid rgba(26, 52, 49, 0.1);
+            text-align: center;
+        }
+        .key-box {
+            background: rgba(26, 52, 49, 0.05);
+            padding: 15px;
+            border-radius: 8px;
+            font-family: monospace;
+            margin: 10px 0;
+            display: inline-block;
+            color: var(--text-ink);
+            border: 1px dashed rgba(26, 52, 49, 0.3);
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="logo">
+            <span class="logo-font">Font</span>
+            <span class="logo-plus">+</span>
+            <span class="logo-pair">Pair</span>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="card">
+            <h1>Your License is Ready</h1>
+            <p class="subtitle">Thank you for joining the FontPair AI Architect community.</p>
+
+            <a href="https://fontpair-ai.vercel.app" class="btn">Launch Application</a>
+
+            <p style="margin-top: 30px; font-size: 14px; opacity: 0.6;">
+                Compatible with Chrome, Edge, and Safari.
+            </p>
+        </div>
+
+        <div class="key-section">
+            <h3>🔑 Activation Key</h3>
+            <p style="font-size: 14px; max-width: 400px; margin: 0 auto 15px auto;">
+                Your unique license key has been sent to your email address by Gumroad.
+                Please copy it from there and paste it into the app.
+            </p>
+            <div class="key-box">Check your email for: XXXX-XXXX-XXXX-XXXX</div>
+            <p style="font-size: 12px; margin-top: 20px; color: #666;">
+                Need help? <a href="mailto:support@fontpair.ai" style="color: var(--text-ink); font-weight: bold;">Contact Support</a>
+            </p>
+        </div>
+    </div>
+</body>
+</html>
