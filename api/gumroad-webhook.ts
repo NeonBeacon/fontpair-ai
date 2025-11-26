@@ -25,9 +25,7 @@ export default async function handler(req: Request) {
     await supabase.from('licenses').insert({
       license_key: licenseKey,
       tier: 'professional',
-      max_devices: 3,
-      purchase_email: email,
-      notes: `Gumroad auto-sync ${saleTimestamp}`
+      max_devices: 3
     });
 
     return new Response('OK', { status: 200 });
