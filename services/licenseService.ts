@@ -447,8 +447,10 @@ export const formatLicenseKey = (key: string): string => {
  * Validate license key format (basic client-side check)
  */
 export const isValidLicenseFormat = (key: string): boolean => {
-    // Remove spaces and dashes
-    const cleaned = key.replace(/[\s-]/g, '');
-    // Check if it's alphanumeric and reasonable length
-    return /^[A-Z0-9]{12,32}$/i.test(cleaned);
+    const cleaned = key.replace(/[\s]/g, '').toUpperCase();
+    // Gumroad format: 8-8-8-8 hex characters
+    const gumroadFormat = /^[A-F0-9]{8}-[A-F0-9]{8}-[A-F0-9]{8}-[A-F0-9]{8}$/i.test(cleaned);
+    // Legacy format
+    const legacyFormat = /^[A-Z0-9-]{12,36}$/i.test(cleaned);
+    return gumroadFormat || legacyFormat;
 };

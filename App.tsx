@@ -21,8 +21,9 @@ import QuickAnalysisModal from './components/QuickAnalysisModal';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { getAIMode, setAIMode, getAPIKey, validateAIMode, isChromeAIAvailable } from './utils/aiSettings';
 import { checkActivationStatus } from './services/licenseService';
+import { getSession } from './services/authService';
 import { getHistory } from './historyService';
-import { getUserTier, isProfessional, canPerformAnalysis, type UserTier } from './services/tierService';
+import { getUserTier, setUserTier, isProfessional, canPerformAnalysis, type UserTier } from './services/tierService';
 
 type ViewMode = 'comparison' | 'suggestions';
 
@@ -110,6 +111,17 @@ const App: React.FC = () => {
     const checkLicense = async () => {
       setIsCheckingLicense(true);
       try {
+        // 1. Check for Supabase Session (Free Tier)
+        const session = await getSession();
+        if (session) {
+          setUserTier('free');
+          setUserTierState('free');
+          setIsLicenseValid(true);
+          setIsCheckingLicense(false);
+          return;
+        }
+
+        // 2. Check for License Key (Pro Tier)
         const result = await checkActivationStatus();
         setIsLicenseValid(result.valid);
         // Update local tier state after check
