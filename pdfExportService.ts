@@ -172,16 +172,16 @@ small, .text-small {
 const COLORS = {
   paper: '#F5F2EB',           // Paper background
   ink: '#1A3431',             // Dark green for main text  
-  teal: '#004d4d',            // Teal for headings
+  teal: '#004d4d',            // Teal for headings (Darker Teal from Constitution)
   accent: '#FF8E24',          // Orange accent
   muted: '#555555',           // Muted text
-  accentSoft: 'rgba(255, 142, 36, 0.1)'
+  accentSoft: '#FFF4E6'       // Very light orange for backgrounds (solid hex for PDF reliability)
 };
 
 // Logo loading function
-const loadLogo = async (): Promise<string | null> => {
+const loadLogo = async (): Promise<{ dataUrl: string; width: number; height: number } | null> => {
   try {
-    const response = await fetch('/logo-full.svg');
+    const response = await fetch('logo-full.svg');
     if (!response.ok) return null;
     const svgText = await response.text();
     
@@ -194,12 +194,17 @@ const loadLogo = async (): Promise<string | null> => {
       img.onload = () => {
         const canvas = document.createElement('canvas');
         // Scale up for better quality in PDF
-        canvas.width = img.width * 2;
-        canvas.height = img.height * 2;
+        const scale = 3;
+        canvas.width = img.width * scale;
+        canvas.height = img.height * scale;
         const ctx = canvas.getContext('2d');
         if (ctx) {
           ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-          resolve(canvas.toDataURL('image/png'));
+          resolve({
+              dataUrl: canvas.toDataURL('image/png'),
+              width: img.width,
+              height: img.height
+          });
         } else {
           resolve(null);
         }
@@ -225,7 +230,7 @@ export async function exportAnalysisToPDF(analysis: FontAnalysis, previewImageBa
   });
 
   // Load logo first
-  const logoDataUrl = await loadLogo();
+  const logoData = await loadLogo();
 
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
@@ -272,17 +277,21 @@ export async function exportAnalysisToPDF(analysis: FontAnalysis, previewImageBa
   doc.rect(0, pageHeight - 8, pageWidth, 8, 'F');
 
   // Draw Logo
-  if (logoDataUrl) {
-    const logoWidth = 60; // Adjusted size
-    const logoHeight = 15; // Aspect ratio approx 4:1
-    const logoX = (pageWidth - logoWidth) / 2;
+  if (logoData) {
+    // Calculate dimensions preserving aspect ratio
+    const targetWidth = 80; // Wider logo on cover
+    const aspectRatio = logoData.height / logoData.width;
+    const targetHeight = targetWidth * aspectRatio;
+    
+    const logoX = (pageWidth - targetWidth) / 2;
     const logoY = 50;
-    doc.addImage(logoDataUrl, 'PNG', logoX, logoY, logoWidth, logoHeight);
+    
+    doc.addImage(logoData.dataUrl, 'PNG', logoX, logoY, targetWidth, targetHeight);
     
     // Decorative line under logo
     doc.setDrawColor(COLORS.accent);
     doc.setLineWidth(1);
-    doc.line(pageWidth / 2 - 40, logoY + 25, pageWidth / 2 + 40, logoY + 25);
+    doc.line(pageWidth / 2 - 40, logoY + targetHeight + 10, pageWidth / 2 + 40, logoY + targetHeight + 10);
   } else {
     // Fallback text if logo fails
     doc.setFont('helvetica', 'bold');
@@ -292,8 +301,8 @@ export async function exportAnalysisToPDF(analysis: FontAnalysis, previewImageBa
   }
   
   // Main title: Font Name
-  yPosition = 100;
-  doc.setFont('times', 'bold'); // Using Times for serif look
+  yPosition = 110;
+  doc.setFont('times', 'bold'); // Serif for headings per Constitution style
   doc.setFontSize(36);
   doc.setTextColor(COLORS.ink);
   const fontNameLines = splitText(analysis.fontName, contentWidth, 36);
@@ -306,7 +315,7 @@ export async function exportAnalysisToPDF(analysis: FontAnalysis, previewImageBa
   yPosition += 5;
   doc.setFont('helvetica', 'italic'); // Sans-serif italic for contrast
   doc.setFontSize(18);
-  doc.setTextColor(COLORS.teal);
+  doc.setTextColor(COLORS.teal); // Teal color for subtitle
   doc.text(analysis.fontType, pageWidth / 2, yPosition, { align: 'center' });
   yPosition += 12;
   
@@ -424,8 +433,8 @@ export async function exportAnalysisToPDF(analysis: FontAnalysis, previewImageBa
   const addBlockquote = (content: string) => {
     checkAndAddPage(30);
     
-    // Background box
-    doc.setFillColor(255, 142, 36, 0.1); // Soft orange
+    // Background box - Light Orange
+    doc.setFillColor(COLORS.accentSoft); 
     const textLines = splitText(content, contentWidth - 20, 11);
     const boxHeight = textLines.length * 6 + 16;
     doc.roundedRect(margin, yPosition - 4, contentWidth, boxHeight, 2, 2, 'F');
@@ -434,15 +443,17 @@ export async function exportAnalysisToPDF(analysis: FontAnalysis, previewImageBa
     doc.setFillColor(COLORS.accent);
     doc.rect(margin, yPosition - 4, 3, boxHeight, 'F');
     
-    // Text
+    // Text - Dark Grey/Muted
     doc.setFont('times', 'italic'); // Serif italic
     doc.setFontSize(11);
-    doc.setTextColor(COLORS.muted);
+    doc.setTextColor(COLORS.muted); // Dark grey for readability on light orange
     textLines.forEach((line: string) => {
       doc.text(line, margin + 10, yPosition + 6);
       yPosition += 6;
     });
-    yPosition += 15;
+    
+    // Add Extra Spacing after box
+    yPosition += 20; // Increased spacing to prevent overlap
   };
 
   // Main Analysis in blockquote style
