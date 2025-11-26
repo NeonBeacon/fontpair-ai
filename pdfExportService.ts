@@ -292,7 +292,7 @@ export async function exportAnalysisToPDF(analysis: FontAnalysis, previewImageBa
     // Adjusted spacing to 10px below logo bottom
     doc.setDrawColor(COLORS.accent);
     doc.setLineWidth(1);
-    doc.line(pageWidth / 2 - 40, logoY + targetHeight + 10, pageWidth / 2 + 40, logoY + targetHeight + 10);
+    doc.line(pageWidth / 2 - 40, logoY + targetHeight + 20, pageWidth / 2 + 40, logoY + targetHeight + 20);
   } else {
     // Fallback text if logo fails
     doc.setFont('helvetica', 'bold');
