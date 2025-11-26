@@ -243,7 +243,7 @@ export async function exportAnalysisToPDF(analysis: FontAnalysis, previewImageBa
     doc.addPage();
     yPosition = margin + 15;
     
-    // Add subtle header line on new pages
+    // Add subtle header line on new pages 
     doc.setDrawColor(COLORS.accent);
     doc.setLineWidth(0.5);
     doc.line(margin, 12, pageWidth - margin, 12);
