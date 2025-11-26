@@ -168,16 +168,42 @@ small, .text-small {
 @import url('https://fonts.googleapis.com/css2?family=${headingFont.fontName.replace(/\s+/g, '+')}:wght@400;600;700&family=${bodyFont.fontName.replace(/\s+/g, '+')}:wght@400;600;700&display=swap');`;
 }
 
-// Print-friendly color scheme with paper background
+// Updated color scheme matching Typography Constitution
 const COLORS = {
-  background: '#F2EFE8',   // Light paper color (no pure white)
-  primary: '#1A3431',      // Dark green for main text
-  secondary: '#2D4E4A',    // Medium dark green for supporting text
-  accent: '#FF8E24'        // Orange for highlights
+  paper: '#F5F2EB',           // Paper background
+  ink: '#1A3431',             // Dark green for main text  
+  teal: '#004d4d',            // Teal for headings
+  accent: '#FF8E24',          // Orange accent
+  muted: '#555555',           // Muted text
+  accentSoft: 'rgba(255, 142, 36, 0.1)'
+};
+
+// Logo drawing function - replicates the FontPair AI logo
+const drawLogo = (doc: jsPDF, x: number, y: number, scale: number = 1) => {
+  const s = scale;
+  
+  // "Font" text in dark teal
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(24 * s);
+  doc.setTextColor(COLORS.ink);
+  doc.text('Font', x, y);
+  
+  // "+" in orange
+  const fontWidth = doc.getTextWidth('Font');
+  doc.setTextColor(COLORS.accent);
+  doc.text('+', x + fontWidth + (2 * s), y);
+  
+  // "Pair" in orange
+  const plusWidth = doc.getTextWidth('+');
+  doc.text('Pair', x + fontWidth + plusWidth + (4 * s), y);
+  
+  // "AI" subscript
+  doc.setFontSize(12 * s);
+  const pairWidth = doc.getTextWidth('Pair');
+  doc.text('AI', x + fontWidth + plusWidth + pairWidth + (6 * s), y + (2 * s));
 };
 
 export async function exportAnalysisToPDF(analysis: FontAnalysis, previewImageBase64?: string): Promise<void> {
-  // Use jsPDF from npm package
   const doc = new jsPDF({
     orientation: 'portrait',
     unit: 'mm',
@@ -186,87 +212,108 @@ export async function exportAnalysisToPDF(analysis: FontAnalysis, previewImageBa
 
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
-  const margin = 20;
+  const margin = 25;
   const contentWidth = pageWidth - (2 * margin);
   let yPosition = margin;
 
-  // Helper function to add a new page if needed
+  // Helper function to add a new page with proper formatting
+  const addNewPage = () => {
+    doc.addPage();
+    yPosition = margin + 15;
+    
+    // Add subtle header line on new pages
+    doc.setDrawColor(COLORS.accent);
+    doc.setLineWidth(0.5);
+    doc.line(margin, 12, pageWidth - margin, 12);
+  };
+
   const checkAndAddPage = (requiredSpace: number) => {
-    if (yPosition + requiredSpace > pageHeight - margin) {
-      doc.addPage();
-      yPosition = margin;
+    if (yPosition + requiredSpace > pageHeight - 25) {
+      addNewPage();
       return true;
     }
     return false;
   };
 
-  // Helper function to wrap text
   const splitText = (text: string, maxWidth: number, fontSize: number) => {
     doc.setFontSize(fontSize);
     return doc.splitTextToSize(text, maxWidth);
   };
 
-  // Header with accent bar
+  // ===== PAGE 1: COVER PAGE =====
+  
+  // Top accent bar
   doc.setFillColor(COLORS.accent);
-  doc.rect(0, 0, pageWidth, 15, 'F');
+  doc.rect(0, 0, pageWidth, 8, 'F');
+  
+  // Paper background for content area
+  doc.setFillColor(COLORS.paper);
+  doc.rect(0, 8, pageWidth, pageHeight - 16, 'F');
+  
+  // Bottom accent bar
+  doc.setFillColor(COLORS.accent);
+  doc.rect(0, pageHeight - 8, pageWidth, 8, 'F');
 
-  // Light paper text on orange background
-  doc.setTextColor('#F2EFE8');
-  doc.setFontSize(18);
+  // Draw logo centered at top
+  const logoY = 50;
+  drawLogo(doc, pageWidth / 2 - 35, logoY, 1.2);
+  
+  // Decorative line under logo
+  doc.setDrawColor(COLORS.accent);
+  doc.setLineWidth(1);
+  doc.line(pageWidth / 2 - 40, logoY + 10, pageWidth / 2 + 40, logoY + 10);
+  
+  // Main title: Font Name
+  yPosition = 90;
   doc.setFont('helvetica', 'bold');
-  doc.text('FontPair AI', margin, 10);
-
-  yPosition = 25;
-
-  // Font Name and Type
-  doc.setTextColor(COLORS.primary);
-  doc.setFontSize(24);
-  doc.setFont('helvetica', 'bold');
-  const fontNameLines = splitText(analysis.fontName, contentWidth, 24);
-  doc.text(fontNameLines, margin, yPosition);
-  yPosition += fontNameLines.length * 10;
-
-  doc.setTextColor(COLORS.accent);
-  doc.setFontSize(14);
-  doc.setFont('helvetica', 'normal');
-  doc.text(analysis.fontType, margin, yPosition);
-  yPosition += 8;
-
-  if (analysis.designer && analysis.designer.toLowerCase() !== 'unknown designer') {
-    doc.setTextColor(COLORS.secondary);
-    doc.setFontSize(11);
-    doc.text(`by ${analysis.designer}`, margin, yPosition);
-    yPosition += 8;
-  }
-
-  if (analysis.isVariable) {
-    doc.setTextColor(COLORS.accent);
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'bold');
-    doc.text('[VARIABLE FONT]', margin, yPosition);
-    yPosition += 8;
-  }
-
+  doc.setFontSize(32);
+  doc.setTextColor(COLORS.ink);
+  const fontNameLines = splitText(analysis.fontName, contentWidth, 32);
+  fontNameLines.forEach((line: string) => {
+    doc.text(line, pageWidth / 2, yPosition, { align: 'center' });
+    yPosition += 14;
+  });
+  
+  // Subtitle: Font Type
   yPosition += 5;
-
-  // Preview Image (if provided)
-  if (previewImageBase64) {
-    checkAndAddPage(90);
-    doc.setTextColor(COLORS.accent);
+  doc.setFont('helvetica', 'italic');
+  doc.setFontSize(16);
+  doc.setTextColor(COLORS.teal);
+  doc.text(analysis.fontType, pageWidth / 2, yPosition, { align: 'center' });
+  yPosition += 10;
+  
+  // Decorative line
+  doc.setDrawColor(COLORS.accent);
+  doc.setLineWidth(2);
+  doc.line(margin + 40, yPosition, pageWidth - margin - 40, yPosition);
+  yPosition += 15;
+  
+  // Designer info
+  if (analysis.designer && analysis.designer.toLowerCase() !== 'unknown designer') {
+    doc.setFont('helvetica', 'normal');
     doc.setFontSize(12);
+    doc.setTextColor(COLORS.muted);
+    doc.text(`Designed by ${analysis.designer}`, pageWidth / 2, yPosition, { align: 'center' });
+    yPosition += 8;
+  }
+  
+  // Variable font badge
+  if (analysis.isVariable) {
     doc.setFont('helvetica', 'bold');
-    doc.text('Preview', margin, yPosition);
-    yPosition += 7;
-
+    doc.setFontSize(10);
+    doc.setTextColor(COLORS.accent);
+    doc.text('[VARIABLE FONT]', pageWidth / 2, yPosition, { align: 'center' });
+    yPosition += 8;
+  }
+  
+  // Preview image on cover page
+  if (previewImageBase64) {
+    yPosition += 10;
     try {
-      // Load image to get actual dimensions
       const img = new Image();
       img.src = previewImageBase64;
-
-      // Calculate proper aspect ratio to prevent squashing
       await new Promise((resolve) => {
         img.onload = resolve;
-        // Set a timeout in case image doesn't load
         setTimeout(resolve, 1000);
       });
 
@@ -274,48 +321,63 @@ export async function exportAnalysisToPDF(analysis: FontAnalysis, previewImageBa
       const actualHeight = img.height || 200;
       const aspectRatio = actualHeight / actualWidth;
 
-      // Calculate dimensions maintaining aspect ratio
-      const maxWidth = contentWidth;
-      const maxHeight = 80; // Max height in mm
-
-      let imgWidth = maxWidth;
+      let imgWidth = contentWidth * 0.7;
       let imgHeight = imgWidth * aspectRatio;
 
-      // If calculated height exceeds max, scale down
-      if (imgHeight > maxHeight) {
-        imgHeight = maxHeight;
+      if (imgHeight > 50) {
+        imgHeight = 50;
         imgWidth = imgHeight / aspectRatio;
       }
 
-      doc.addImage(previewImageBase64, 'PNG', margin, yPosition, imgWidth, imgHeight);
-      yPosition += imgHeight + 10;
+      const imgX = (pageWidth - imgWidth) / 2;
+      
+      // Add subtle border around preview
+      doc.setDrawColor(COLORS.teal);
+      doc.setLineWidth(0.3);
+      doc.roundedRect(imgX - 2, yPosition - 2, imgWidth + 4, imgHeight + 4, 2, 2, 'S');
+      
+      doc.addImage(previewImageBase64, 'PNG', imgX, yPosition, imgWidth, imgHeight);
+      yPosition += imgHeight + 15;
     } catch (e) {
       console.error('Failed to add preview image', e);
     }
   }
+  
+  // Tagline at bottom of cover
+  doc.setFont('helvetica', 'italic');
+  doc.setFontSize(11);
+  doc.setTextColor(COLORS.muted);
+  doc.text('AI-Powered Typography Analysis Report', pageWidth / 2, pageHeight - 30, { align: 'center' });
+  doc.text('Generated by FontPair AI', pageWidth / 2, pageHeight - 24, { align: 'center' });
 
-  // Section helper function
+  // ===== PAGE 2+: CONTENT PAGES =====
+  addNewPage();
+  
+  // Section helper with Typography Constitution styling
   const addSection = (title: string, content: string | string[], isList: boolean = false) => {
-    checkAndAddPage(20);
+    checkAndAddPage(25);
 
-    doc.setTextColor(COLORS.accent);
-    doc.setFontSize(12);
+    // Section title with accent color
     doc.setFont('helvetica', 'bold');
+    doc.setFontSize(14);
+    doc.setTextColor(COLORS.accent);
     doc.text(title, margin, yPosition);
-    yPosition += 7;
+    yPosition += 8;
 
-    doc.setTextColor(COLORS.primary);
-    doc.setFontSize(10);
+    // Content in dark ink
     doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    doc.setTextColor(COLORS.ink);
 
     if (isList && Array.isArray(content)) {
       content.forEach(item => {
-        checkAndAddPage(10);
-        const bulletX = margin + 2;
-        doc.circle(bulletX, yPosition - 1.5, 0.8, 'F');
-        const lines = splitText(item, contentWidth - 8, 10);
-        doc.text(lines, margin + 6, yPosition);
-        yPosition += lines.length * 5 + 2;
+        checkAndAddPage(12);
+        // Orange bullet
+        doc.setFillColor(COLORS.accent);
+        doc.circle(margin + 3, yPosition - 1.5, 1, 'F');
+        const lines = splitText(item, contentWidth - 10, 10);
+        doc.text(lines, margin + 8, yPosition);
+        yPosition += lines.length * 5 + 3;
       });
     } else {
       const text = Array.isArray(content) ? content.join(', ') : content;
@@ -327,11 +389,41 @@ export async function exportAnalysisToPDF(analysis: FontAnalysis, previewImageBa
       });
     }
 
-    yPosition += 5;
+    yPosition += 8;
   };
 
-  // Analysis
-  addSection('Analysis', analysis.analysis);
+  // Blockquote style for analysis (like Typography Constitution abstract)
+  const addBlockquote = (content: string) => {
+    checkAndAddPage(30);
+    
+    // Background box
+    doc.setFillColor(255, 142, 36, 0.1); // Soft orange
+    const textLines = splitText(content, contentWidth - 20, 10);
+    const boxHeight = textLines.length * 5 + 16;
+    doc.roundedRect(margin, yPosition - 4, contentWidth, boxHeight, 2, 2, 'F');
+    
+    // Left accent bar
+    doc.setFillColor(COLORS.accent);
+    doc.rect(margin, yPosition - 4, 3, boxHeight, 'F');
+    
+    // Text
+    doc.setFont('helvetica', 'italic');
+    doc.setFontSize(10);
+    doc.setTextColor(COLORS.muted);
+    textLines.forEach((line: string) => {
+      doc.text(line, margin + 10, yPosition + 4);
+      yPosition += 5;
+    });
+    yPosition += 12;
+  };
+
+  // Main Analysis in blockquote style
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(18);
+  doc.setTextColor(COLORS.ink);
+  doc.text('Analysis', margin, yPosition);
+  yPosition += 10;
+  addBlockquote(analysis.analysis);
 
   // Historical Context
   if (analysis.historicalContext) {
@@ -340,99 +432,100 @@ export async function exportAnalysisToPDF(analysis: FontAnalysis, previewImageBa
 
   // Accessibility & Legibility
   if (analysis.accessibility) {
-    checkAndAddPage(20);
-    doc.setTextColor(COLORS.accent);
-    doc.setFontSize(12);
+    checkAndAddPage(25);
     doc.setFont('helvetica', 'bold');
+    doc.setFontSize(14);
+    doc.setTextColor(COLORS.accent);
     doc.text('Accessibility & Legibility', margin, yPosition);
-    yPosition += 7;
+    yPosition += 8;
 
-    doc.setTextColor(COLORS.primary);
-    doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    doc.setTextColor(COLORS.ink);
     const accessLines = splitText(analysis.accessibility.analysis, contentWidth, 10);
     accessLines.forEach((line: string) => {
       checkAndAddPage(7);
       doc.text(line, margin, yPosition);
       yPosition += 5;
     });
-    yPosition += 3;
+    yPosition += 5;
 
     if (analysis.accessibility.notes && analysis.accessibility.notes.length > 0) {
       analysis.accessibility.notes.forEach(note => {
-        checkAndAddPage(10);
-        const bulletX = margin + 2;
+        checkAndAddPage(12);
         doc.setFillColor(COLORS.accent);
-        doc.circle(bulletX, yPosition - 1.5, 0.8, 'F');
-        const lines = splitText(note, contentWidth - 8, 10);
-        doc.text(lines, margin + 6, yPosition);
-        yPosition += lines.length * 5 + 2;
+        doc.circle(margin + 3, yPosition - 1.5, 1, 'F');
+        const lines = splitText(note, contentWidth - 10, 10);
+        doc.text(lines, margin + 8, yPosition);
+        yPosition += lines.length * 5 + 3;
       });
     }
-    yPosition += 5;
+    yPosition += 8;
   }
 
   // Font Pairing Suggestions
   if (analysis.fontPairings && analysis.fontPairings.length > 0) {
-    checkAndAddPage(20);
-    doc.setTextColor(COLORS.accent);
-    doc.setFontSize(12);
+    checkAndAddPage(25);
     doc.setFont('helvetica', 'bold');
+    doc.setFontSize(14);
+    doc.setTextColor(COLORS.accent);
     doc.text('Font Pairing Suggestions', margin, yPosition);
-    yPosition += 7;
+    yPosition += 10;
 
     analysis.fontPairings.forEach((pairing, index) => {
-      checkAndAddPage(15);
-      doc.setTextColor(COLORS.primary);
-      doc.setFontSize(10);
+      checkAndAddPage(20);
       doc.setFont('helvetica', 'bold');
+      doc.setFontSize(11);
+      doc.setTextColor(COLORS.ink);
       doc.text(`${index + 1}. ${pairing.primary} + ${pairing.secondary}`, margin, yPosition);
-      yPosition += 5;
+      yPosition += 6;
 
       doc.setFont('helvetica', 'normal');
-      const rationaleLines = splitText(pairing.rationale, contentWidth, 10);
+      doc.setFontSize(10);
+      doc.setTextColor(COLORS.muted);
+      const rationaleLines = splitText(pairing.rationale, contentWidth - 5, 10);
       rationaleLines.forEach((line: string) => {
         checkAndAddPage(7);
         doc.text(line, margin + 5, yPosition);
         yPosition += 5;
       });
-      yPosition += 3;
+      yPosition += 5;
     });
     yPosition += 5;
   }
 
   // Similar Font Alternatives
   if (analysis.similarFonts && analysis.similarFonts.length > 0) {
-    checkAndAddPage(20);
-    doc.setTextColor(COLORS.accent);
-    doc.setFontSize(12);
+    checkAndAddPage(25);
     doc.setFont('helvetica', 'bold');
+    doc.setFontSize(14);
+    doc.setTextColor(COLORS.accent);
     doc.text('Similar Font Alternatives', margin, yPosition);
-    yPosition += 7;
+    yPosition += 10;
 
     analysis.similarFonts.forEach((font, index) => {
-      checkAndAddPage(12);
-      doc.setTextColor(COLORS.primary);
-      doc.setFontSize(10);
+      checkAndAddPage(18);
       doc.setFont('helvetica', 'bold');
+      doc.setFontSize(11);
+      doc.setTextColor(COLORS.ink);
       doc.text(`${index + 1}. ${font.name}`, margin, yPosition);
 
-      doc.setTextColor(COLORS.secondary);
       doc.setFont('helvetica', 'italic');
-      doc.setFontSize(8);
-      doc.text(`(${font.source})`, margin + doc.getTextWidth(`${index + 1}. ${font.name}`) + 2, yPosition);
-      yPosition += 5;
+      doc.setFontSize(9);
+      doc.setTextColor(COLORS.teal);
+      doc.text(`(${font.source})`, margin + doc.getTextWidth(`${index + 1}. ${font.name}`) + 3, yPosition);
+      yPosition += 6;
 
-      doc.setTextColor(COLORS.primary);
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(10);
-      const rationaleLines = splitText(font.rationale, contentWidth, 10);
+      doc.setTextColor(COLORS.muted);
+      const rationaleLines = splitText(font.rationale, contentWidth - 5, 10);
       rationaleLines.forEach((line: string) => {
         checkAndAddPage(7);
         doc.text(line, margin + 5, yPosition);
         yPosition += 5;
       });
-      yPosition += 3;
+      yPosition += 5;
     });
     yPosition += 5;
   }
@@ -449,43 +542,47 @@ export async function exportAnalysisToPDF(analysis: FontAnalysis, previewImageBa
 
   // Business Suitability
   if (analysis.businessSuitability && analysis.businessSuitability.length > 0) {
-    checkAndAddPage(15);
-    doc.setTextColor(COLORS.accent);
-    doc.setFontSize(12);
+    checkAndAddPage(20);
     doc.setFont('helvetica', 'bold');
+    doc.setFontSize(14);
+    doc.setTextColor(COLORS.accent);
     doc.text('Business Suitability', margin, yPosition);
-    yPosition += 7;
+    yPosition += 8;
 
-    doc.setTextColor(COLORS.primary);
-    doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
-    doc.text(analysis.businessSuitability.join(', '), margin, yPosition, { maxWidth: contentWidth });
-    const businessLines = splitText(analysis.businessSuitability.join(', '), contentWidth, 10);
-    yPosition += businessLines.length * 5 + 5;
+    doc.setFontSize(10);
+    doc.setTextColor(COLORS.ink);
+    const businessText = analysis.businessSuitability.join(' • ');
+    const businessLines = splitText(businessText, contentWidth, 10);
+    businessLines.forEach((line: string) => {
+      checkAndAddPage(7);
+      doc.text(line, margin, yPosition);
+      yPosition += 5;
+    });
+    yPosition += 8;
   }
 
-  // License & Usage Information
+  // License Information
   if (analysis.licenseInfo) {
     addSection('License & Usage Information', analysis.licenseInfo);
   }
 
-  // Licensing Notes for Commercial Use (new field)
   if (analysis.licensingNotes) {
     addSection('Commercial Licensing Notes', analysis.licensingNotes);
   }
 
-  // Character Set Support (new field)
+  // Character Set Support
   if (analysis.characterSets && analysis.characterSets.length > 0) {
-    checkAndAddPage(15);
-    doc.setTextColor(COLORS.accent);
-    doc.setFontSize(12);
+    checkAndAddPage(20);
     doc.setFont('helvetica', 'bold');
+    doc.setFontSize(14);
+    doc.setTextColor(COLORS.accent);
     doc.text('Character Set Support', margin, yPosition);
-    yPosition += 7;
+    yPosition += 8;
 
-    doc.setTextColor(COLORS.primary);
-    doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    doc.setTextColor(COLORS.ink);
     const charSetText = analysis.characterSets.join(' • ');
     const charSetLines = splitText(charSetText, contentWidth, 10);
     charSetLines.forEach((line: string) => {
@@ -493,26 +590,22 @@ export async function exportAnalysisToPDF(analysis: FontAnalysis, previewImageBa
       doc.text(line, margin, yPosition);
       yPosition += 5;
     });
-    yPosition += 5;
-  }
-
-  // Release Year (new field)
-  if (analysis.releaseYear && analysis.releaseYear.toLowerCase() !== 'unknown') {
-    checkAndAddPage(10);
-    doc.setTextColor(COLORS.secondary);
-    doc.setFontSize(9);
-    doc.setFont('helvetica', 'italic');
-    doc.text(`Originally released: ${analysis.releaseYear}`, margin, yPosition);
     yPosition += 8;
   }
 
-  // Footer on last page
-  doc.setTextColor(COLORS.secondary);
-  doc.setFontSize(8);
-  doc.setFont('helvetica', 'italic');
-  const footerText = 'Generated by FontPair AI - Powered by Google Gemini';
-  const footerWidth = doc.getTextWidth(footerText);
-  doc.text(footerText, (pageWidth - footerWidth) / 2, pageHeight - 10);
+  // Release Year
+  if (analysis.releaseYear && analysis.releaseYear.toLowerCase() !== 'unknown') {
+    checkAndAddPage(12);
+    doc.setFont('helvetica', 'italic');
+    doc.setFontSize(10);
+    doc.setTextColor(COLORS.muted);
+    doc.text(`Originally released: ${analysis.releaseYear}`, margin, yPosition);
+    yPosition += 10;
+  }
+
+  // Add bottom accent bar on last page
+  doc.setFillColor(COLORS.accent);
+  doc.rect(0, pageHeight - 8, pageWidth, 8, 'F');
 
   // Add watermark for free tier users
   if (!isProfessional()) {
@@ -523,8 +616,9 @@ export async function exportAnalysisToPDF(analysis: FontAnalysis, previewImageBa
       doc.setFontSize(40);
       doc.setFont('helvetica', 'bold');
       
+      const text = "FONTPAIR AI - FREE VERSION";
+      
       // Center the text at 45 degrees
-      // To do this, we translate to center, rotate, then draw text centered
       const x = pageWidth / 2;
       const y = pageHeight / 2;
       
@@ -535,13 +629,20 @@ export async function exportAnalysisToPDF(analysis: FontAnalysis, previewImageBa
           doc.setGState(new doc.GState({ opacity: 0.15 })); // Set opacity if possible
       }
 
-      doc.text("FONTPAIR AI - FREE VERSION", x, y, { align: 'center', angle: 45 });
+      doc.text(text, x, y, { align: 'center', angle: 45 });
 
       if (doc.context2d) {
           doc.restoreGraphicsState();
       }
     }
   }
+
+  // Footer
+  doc.setFont('helvetica', 'italic');
+  doc.setFontSize(9);
+  doc.setTextColor(COLORS.muted);
+  const footerText = 'A FontPair AI Analysis Report • Powered by Google Gemini';
+  doc.text(footerText, pageWidth / 2, pageHeight - 14, { align: 'center' });
 
   // Save the PDF
   const fileName = `${analysis.fontName.replace(/\s+/g, '_')}_Analysis.pdf`;

@@ -326,7 +326,7 @@ const AnalysisResult: React.FC<AnalysisResultProps> = ({ result, onReset, isShar
                             <button onClick={() => setExportFormat('json')} className={`w-full rounded-md py-1 text-sm font-semibold ${exportFormat === 'json' ? 'bg-accent text-surface' : 'text-secondary hover:bg-border'}`}>JSON</button>
                         </div>
                         <div className="relative">
-                            <pre className="bg-background text-primary/80 p-4 rounded-md text-xs overflow-x-auto"><code className="whitespace-pre-wrap">{generateTokens()}</code></pre>
+                            <pre className="bg-teal-dark text-teal-light p-4 rounded-md text-xs overflow-x-auto border border-teal-medium"><code className="whitespace-pre-wrap">{generateTokens()}</code></pre>
                             <button onClick={() => handleCopyToClipboard(generateTokens())} className={`absolute top-2 right-2 p-2 rounded-lg transition-colors ${copied ? 'bg-green-500 text-primary' : 'bg-border text-primary hover:bg-accent hover:text-surface'}`} aria-label="Copy to clipboard">
                                 {copied ? <CheckIcon className="w-4 h-4"/> : <CopyIcon className="w-4 h-4"/>}
                             </button>
