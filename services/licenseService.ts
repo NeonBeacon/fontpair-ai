@@ -32,6 +32,7 @@ export interface ValidationResult {
     currentDevices?: number;
     expiresAt?: string;
     message?: string;
+    tier?: string;
 }
 
 export interface LicenseInfo {
@@ -214,8 +215,9 @@ export const validateLicenseKey = async (
                 maxDevices: result.max_devices
             });
 
-            // Update tier to professional
-            setUserTier('professional');
+            // Use tier from database instead of hardcoding 'professional'
+            const tier = result.tier || 'professional';
+            setUserTier(tier as 'free' | 'professional');
 
             // Convert 'success' to 'valid' for consistency with existing code
             return {
@@ -223,7 +225,8 @@ export const validateLicenseKey = async (
                 licenseKey: result.license_key,
                 maxDevices: result.max_devices,
                 expiresAt: result.expires_at,
-                message: result.message
+                message: result.message,
+                tier: tier
             };
         }
 
