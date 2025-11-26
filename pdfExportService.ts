@@ -284,14 +284,15 @@ export async function exportAnalysisToPDF(analysis: FontAnalysis, previewImageBa
     const targetHeight = targetWidth * aspectRatio;
     
     const logoX = (pageWidth - targetWidth) / 2;
-    const logoY = 30;
+    const logoY = 30; // Adjusted position
     
     doc.addImage(logoData.dataUrl, 'PNG', logoX, logoY, targetWidth, targetHeight);
     
-    // Decorative line under logo (moved up 40px per request)
+    // Decorative line under logo - positioned below logo to avoid cut-through
+    // Adjusted spacing to 10px below logo bottom
     doc.setDrawColor(COLORS.accent);
     doc.setLineWidth(1);
-    doc.line(pageWidth / 2 - 40, logoY + targetHeight - 20, pageWidth / 2 + 40, logoY + targetHeight - 20);
+    doc.line(pageWidth / 2 - 40, logoY + targetHeight + 10, pageWidth / 2 + 40, logoY + targetHeight + 10);
   } else {
     // Fallback text if logo fails
     doc.setFont('helvetica', 'bold');
@@ -311,19 +312,20 @@ export async function exportAnalysisToPDF(analysis: FontAnalysis, previewImageBa
     yPosition += 16;
   });
   
+  // Decorative line UNDER title (similar to H1 border-bottom)
+  doc.setDrawColor(COLORS.accent);
+  doc.setLineWidth(1.5); // Thicker line for H1
+  // Draw line 5px below the last title line baseline
+  doc.line(margin + 40, yPosition - 8, pageWidth - margin - 40, yPosition - 8);
+  
+  yPosition += 10; // Space after line
+  
   // Subtitle: Font Type
-  yPosition += 5;
   doc.setFont('helvetica', 'italic'); // Sans-serif italic for contrast
   doc.setFontSize(18);
   doc.setTextColor(COLORS.teal); // Teal color for subtitle
   doc.text(analysis.fontType, pageWidth / 2, yPosition, { align: 'center' });
-  yPosition += 12;
-  
-  // Decorative line (moved up 40px per request)
-  doc.setDrawColor(COLORS.accent);
-  doc.setLineWidth(2);
-  doc.line(margin + 40, yPosition - 40, pageWidth - margin - 40, yPosition - 40);
-  yPosition += 20;
+  yPosition += 25;
   
   // Designer info
   if (analysis.designer && analysis.designer.toLowerCase() !== 'unknown designer') {
@@ -461,7 +463,13 @@ export async function exportAnalysisToPDF(analysis: FontAnalysis, previewImageBa
   doc.setFontSize(18);
   doc.setTextColor(COLORS.ink);
   doc.text('Analysis', margin, yPosition);
+  yPosition += 6;
+  // Underline for Analysis Header
+  doc.setDrawColor(COLORS.accent);
+  doc.setLineWidth(1);
+  doc.line(margin, yPosition, pageWidth - margin, yPosition);
   yPosition += 10;
+  
   addBlockquote(analysis.analysis);
 
   // Historical Context
