@@ -284,14 +284,14 @@ export async function exportAnalysisToPDF(analysis: FontAnalysis, previewImageBa
     const targetHeight = targetWidth * aspectRatio;
     
     const logoX = (pageWidth - targetWidth) / 2;
-    const logoY = 50;
+    const logoY = 30;
     
     doc.addImage(logoData.dataUrl, 'PNG', logoX, logoY, targetWidth, targetHeight);
     
     // Decorative line under logo
     doc.setDrawColor(COLORS.accent);
     doc.setLineWidth(1);
-    doc.line(pageWidth / 2 - 40, logoY + targetHeight + 10, pageWidth / 2 + 40, logoY + targetHeight + 10);
+    doc.line(pageWidth / 2 - 40, logoY + targetHeight + 20, pageWidth / 2 + 40, logoY + targetHeight + 20);
   } else {
     // Fallback text if logo fails
     doc.setFont('helvetica', 'bold');
