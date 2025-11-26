@@ -288,10 +288,10 @@ export async function exportAnalysisToPDF(analysis: FontAnalysis, previewImageBa
     
     doc.addImage(logoData.dataUrl, 'PNG', logoX, logoY, targetWidth, targetHeight);
     
-    // Decorative line under logo
+    // Decorative line under logo (moved up 40px per request)
     doc.setDrawColor(COLORS.accent);
     doc.setLineWidth(1);
-    doc.line(pageWidth / 2 - 40, logoY + targetHeight + 20, pageWidth / 2 + 40, logoY + targetHeight + 20);
+    doc.line(pageWidth / 2 - 40, logoY + targetHeight - 20, pageWidth / 2 + 40, logoY + targetHeight - 20);
   } else {
     // Fallback text if logo fails
     doc.setFont('helvetica', 'bold');
@@ -319,10 +319,10 @@ export async function exportAnalysisToPDF(analysis: FontAnalysis, previewImageBa
   doc.text(analysis.fontType, pageWidth / 2, yPosition, { align: 'center' });
   yPosition += 12;
   
-  // Decorative line
+  // Decorative line (moved up 40px per request)
   doc.setDrawColor(COLORS.accent);
   doc.setLineWidth(2);
-  doc.line(margin + 40, yPosition, pageWidth - margin - 40, yPosition);
+  doc.line(margin + 40, yPosition - 40, pageWidth - margin - 40, yPosition - 40);
   yPosition += 20;
   
   // Designer info
