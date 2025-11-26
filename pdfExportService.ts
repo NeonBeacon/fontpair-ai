@@ -178,29 +178,43 @@ const COLORS = {
   accentSoft: 'rgba(255, 142, 36, 0.1)'
 };
 
-// Logo drawing function - replicates the FontPair AI logo
-const drawLogo = (doc: jsPDF, x: number, y: number, scale: number = 1) => {
-  const s = scale;
-  
-  // "Font" text in dark teal
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(24 * s);
-  doc.setTextColor(COLORS.ink);
-  doc.text('Font', x, y);
-  
-  // "+" in orange
-  const fontWidth = doc.getTextWidth('Font');
-  doc.setTextColor(COLORS.accent);
-  doc.text('+', x + fontWidth + (2 * s), y);
-  
-  // "Pair" in orange
-  const plusWidth = doc.getTextWidth('+');
-  doc.text('Pair', x + fontWidth + plusWidth + (4 * s), y);
-  
-  // "AI" subscript
-  doc.setFontSize(12 * s);
-  const pairWidth = doc.getTextWidth('Pair');
-  doc.text('AI', x + fontWidth + plusWidth + pairWidth + (6 * s), y + (2 * s));
+// Logo loading function
+const loadLogo = async (): Promise<string | null> => {
+  try {
+    const response = await fetch('/logo-full.svg');
+    if (!response.ok) return null;
+    const svgText = await response.text();
+    
+    // Create an image from the SVG
+    const img = new Image();
+    const svgBlob = new Blob([svgText], { type: 'image/svg+xml;charset=utf-8' });
+    const url = URL.createObjectURL(svgBlob);
+    
+    return new Promise((resolve) => {
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        // Scale up for better quality in PDF
+        canvas.width = img.width * 2;
+        canvas.height = img.height * 2;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          resolve(canvas.toDataURL('image/png'));
+        } else {
+          resolve(null);
+        }
+        URL.revokeObjectURL(url);
+      };
+      img.onerror = () => {
+        resolve(null);
+        URL.revokeObjectURL(url);
+      };
+      img.src = url;
+    });
+  } catch (e) {
+    console.error("Failed to load logo:", e);
+    return null;
+  }
 };
 
 export async function exportAnalysisToPDF(analysis: FontAnalysis, previewImageBase64?: string): Promise<void> {
@@ -209,6 +223,9 @@ export async function exportAnalysisToPDF(analysis: FontAnalysis, previewImageBa
     unit: 'mm',
     format: 'a4'
   });
+
+  // Load logo first
+  const logoDataUrl = await loadLogo();
 
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
@@ -254,39 +271,50 @@ export async function exportAnalysisToPDF(analysis: FontAnalysis, previewImageBa
   doc.setFillColor(COLORS.accent);
   doc.rect(0, pageHeight - 8, pageWidth, 8, 'F');
 
-  // Draw logo centered at top
-  const logoY = 50;
-  drawLogo(doc, pageWidth / 2 - 35, logoY, 1.2);
-  
-  // Decorative line under logo
-  doc.setDrawColor(COLORS.accent);
-  doc.setLineWidth(1);
-  doc.line(pageWidth / 2 - 40, logoY + 10, pageWidth / 2 + 40, logoY + 10);
+  // Draw Logo
+  if (logoDataUrl) {
+    const logoWidth = 60; // Adjusted size
+    const logoHeight = 15; // Aspect ratio approx 4:1
+    const logoX = (pageWidth - logoWidth) / 2;
+    const logoY = 50;
+    doc.addImage(logoDataUrl, 'PNG', logoX, logoY, logoWidth, logoHeight);
+    
+    // Decorative line under logo
+    doc.setDrawColor(COLORS.accent);
+    doc.setLineWidth(1);
+    doc.line(pageWidth / 2 - 40, logoY + 25, pageWidth / 2 + 40, logoY + 25);
+  } else {
+    // Fallback text if logo fails
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(24);
+    doc.setTextColor(COLORS.ink);
+    doc.text('FontPair AI', pageWidth / 2, 60, { align: 'center' });
+  }
   
   // Main title: Font Name
-  yPosition = 90;
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(32);
+  yPosition = 100;
+  doc.setFont('times', 'bold'); // Using Times for serif look
+  doc.setFontSize(36);
   doc.setTextColor(COLORS.ink);
-  const fontNameLines = splitText(analysis.fontName, contentWidth, 32);
+  const fontNameLines = splitText(analysis.fontName, contentWidth, 36);
   fontNameLines.forEach((line: string) => {
     doc.text(line, pageWidth / 2, yPosition, { align: 'center' });
-    yPosition += 14;
+    yPosition += 16;
   });
   
   // Subtitle: Font Type
   yPosition += 5;
-  doc.setFont('helvetica', 'italic');
-  doc.setFontSize(16);
+  doc.setFont('helvetica', 'italic'); // Sans-serif italic for contrast
+  doc.setFontSize(18);
   doc.setTextColor(COLORS.teal);
   doc.text(analysis.fontType, pageWidth / 2, yPosition, { align: 'center' });
-  yPosition += 10;
+  yPosition += 12;
   
   // Decorative line
   doc.setDrawColor(COLORS.accent);
   doc.setLineWidth(2);
   doc.line(margin + 40, yPosition, pageWidth - margin - 40, yPosition);
-  yPosition += 15;
+  yPosition += 20;
   
   // Designer info
   if (analysis.designer && analysis.designer.toLowerCase() !== 'unknown designer') {
@@ -294,7 +322,7 @@ export async function exportAnalysisToPDF(analysis: FontAnalysis, previewImageBa
     doc.setFontSize(12);
     doc.setTextColor(COLORS.muted);
     doc.text(`Designed by ${analysis.designer}`, pageWidth / 2, yPosition, { align: 'center' });
-    yPosition += 8;
+    yPosition += 10;
   }
   
   // Variable font badge
@@ -303,7 +331,7 @@ export async function exportAnalysisToPDF(analysis: FontAnalysis, previewImageBa
     doc.setFontSize(10);
     doc.setTextColor(COLORS.accent);
     doc.text('[VARIABLE FONT]', pageWidth / 2, yPosition, { align: 'center' });
-    yPosition += 8;
+    yPosition += 10;
   }
   
   // Preview image on cover page
@@ -324,8 +352,8 @@ export async function exportAnalysisToPDF(analysis: FontAnalysis, previewImageBa
       let imgWidth = contentWidth * 0.7;
       let imgHeight = imgWidth * aspectRatio;
 
-      if (imgHeight > 50) {
-        imgHeight = 50;
+      if (imgHeight > 60) {
+        imgHeight = 60;
         imgWidth = imgHeight / aspectRatio;
       }
 
@@ -347,8 +375,8 @@ export async function exportAnalysisToPDF(analysis: FontAnalysis, previewImageBa
   doc.setFont('helvetica', 'italic');
   doc.setFontSize(11);
   doc.setTextColor(COLORS.muted);
-  doc.text('AI-Powered Typography Analysis Report', pageWidth / 2, pageHeight - 30, { align: 'center' });
-  doc.text('Generated by FontPair AI', pageWidth / 2, pageHeight - 24, { align: 'center' });
+  doc.text('The Typography Constitution', pageWidth / 2, pageHeight - 35, { align: 'center' });
+  doc.text('AI-Powered Analysis Report', pageWidth / 2, pageHeight - 28, { align: 'center' });
 
   // ===== PAGE 2+: CONTENT PAGES =====
   addNewPage();
@@ -358,15 +386,15 @@ export async function exportAnalysisToPDF(analysis: FontAnalysis, previewImageBa
     checkAndAddPage(25);
 
     // Section title with accent color
-    doc.setFont('helvetica', 'bold');
+    doc.setFont('helvetica', 'bold'); // Sans-serif headings
     doc.setFontSize(14);
     doc.setTextColor(COLORS.accent);
     doc.text(title, margin, yPosition);
     yPosition += 8;
 
-    // Content in dark ink
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(10);
+    // Content in dark ink, serif body
+    doc.setFont('times', 'roman');
+    doc.setFontSize(11);
     doc.setTextColor(COLORS.ink);
 
     if (isList && Array.isArray(content)) {
@@ -375,21 +403,21 @@ export async function exportAnalysisToPDF(analysis: FontAnalysis, previewImageBa
         // Orange bullet
         doc.setFillColor(COLORS.accent);
         doc.circle(margin + 3, yPosition - 1.5, 1, 'F');
-        const lines = splitText(item, contentWidth - 10, 10);
+        const lines = splitText(item, contentWidth - 10, 11);
         doc.text(lines, margin + 8, yPosition);
         yPosition += lines.length * 5 + 3;
       });
     } else {
       const text = Array.isArray(content) ? content.join(', ') : content;
-      const lines = splitText(text, contentWidth, 10);
+      const lines = splitText(text, contentWidth, 11);
       lines.forEach((line: string) => {
         checkAndAddPage(7);
         doc.text(line, margin, yPosition);
-        yPosition += 5;
+        yPosition += 6;
       });
     }
 
-    yPosition += 8;
+    yPosition += 10;
   };
 
   // Blockquote style for analysis (like Typography Constitution abstract)
@@ -398,8 +426,8 @@ export async function exportAnalysisToPDF(analysis: FontAnalysis, previewImageBa
     
     // Background box
     doc.setFillColor(255, 142, 36, 0.1); // Soft orange
-    const textLines = splitText(content, contentWidth - 20, 10);
-    const boxHeight = textLines.length * 5 + 16;
+    const textLines = splitText(content, contentWidth - 20, 11);
+    const boxHeight = textLines.length * 6 + 16;
     doc.roundedRect(margin, yPosition - 4, contentWidth, boxHeight, 2, 2, 'F');
     
     // Left accent bar
@@ -407,14 +435,14 @@ export async function exportAnalysisToPDF(analysis: FontAnalysis, previewImageBa
     doc.rect(margin, yPosition - 4, 3, boxHeight, 'F');
     
     // Text
-    doc.setFont('helvetica', 'italic');
-    doc.setFontSize(10);
+    doc.setFont('times', 'italic'); // Serif italic
+    doc.setFontSize(11);
     doc.setTextColor(COLORS.muted);
     textLines.forEach((line: string) => {
-      doc.text(line, margin + 10, yPosition + 4);
-      yPosition += 5;
+      doc.text(line, margin + 10, yPosition + 6);
+      yPosition += 6;
     });
-    yPosition += 12;
+    yPosition += 15;
   };
 
   // Main Analysis in blockquote style
@@ -439,14 +467,14 @@ export async function exportAnalysisToPDF(analysis: FontAnalysis, previewImageBa
     doc.text('Accessibility & Legibility', margin, yPosition);
     yPosition += 8;
 
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(10);
+    doc.setFont('times', 'roman');
+    doc.setFontSize(11);
     doc.setTextColor(COLORS.ink);
-    const accessLines = splitText(analysis.accessibility.analysis, contentWidth, 10);
+    const accessLines = splitText(analysis.accessibility.analysis, contentWidth, 11);
     accessLines.forEach((line: string) => {
       checkAndAddPage(7);
       doc.text(line, margin, yPosition);
-      yPosition += 5;
+      yPosition += 6;
     });
     yPosition += 5;
 
@@ -455,9 +483,9 @@ export async function exportAnalysisToPDF(analysis: FontAnalysis, previewImageBa
         checkAndAddPage(12);
         doc.setFillColor(COLORS.accent);
         doc.circle(margin + 3, yPosition - 1.5, 1, 'F');
-        const lines = splitText(note, contentWidth - 10, 10);
+        const lines = splitText(note, contentWidth - 10, 11);
         doc.text(lines, margin + 8, yPosition);
-        yPosition += lines.length * 5 + 3;
+        yPosition += lines.length * 6 + 3;
       });
     }
     yPosition += 8;
@@ -475,19 +503,19 @@ export async function exportAnalysisToPDF(analysis: FontAnalysis, previewImageBa
     analysis.fontPairings.forEach((pairing, index) => {
       checkAndAddPage(20);
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(11);
+      doc.setFontSize(12);
       doc.setTextColor(COLORS.ink);
       doc.text(`${index + 1}. ${pairing.primary} + ${pairing.secondary}`, margin, yPosition);
       yPosition += 6;
 
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(10);
+      doc.setFont('times', 'roman');
+      doc.setFontSize(11);
       doc.setTextColor(COLORS.muted);
-      const rationaleLines = splitText(pairing.rationale, contentWidth - 5, 10);
+      const rationaleLines = splitText(pairing.rationale, contentWidth - 5, 11);
       rationaleLines.forEach((line: string) => {
         checkAndAddPage(7);
         doc.text(line, margin + 5, yPosition);
-        yPosition += 5;
+        yPosition += 6;
       });
       yPosition += 5;
     });
@@ -506,24 +534,24 @@ export async function exportAnalysisToPDF(analysis: FontAnalysis, previewImageBa
     analysis.similarFonts.forEach((font, index) => {
       checkAndAddPage(18);
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(11);
+      doc.setFontSize(12);
       doc.setTextColor(COLORS.ink);
       doc.text(`${index + 1}. ${font.name}`, margin, yPosition);
 
-      doc.setFont('helvetica', 'italic');
-      doc.setFontSize(9);
+      doc.setFont('times', 'italic');
+      doc.setFontSize(10);
       doc.setTextColor(COLORS.teal);
       doc.text(`(${font.source})`, margin + doc.getTextWidth(`${index + 1}. ${font.name}`) + 3, yPosition);
       yPosition += 6;
 
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(10);
+      doc.setFont('times', 'roman');
+      doc.setFontSize(11);
       doc.setTextColor(COLORS.muted);
-      const rationaleLines = splitText(font.rationale, contentWidth - 5, 10);
+      const rationaleLines = splitText(font.rationale, contentWidth - 5, 11);
       rationaleLines.forEach((line: string) => {
         checkAndAddPage(7);
         doc.text(line, margin + 5, yPosition);
-        yPosition += 5;
+        yPosition += 6;
       });
       yPosition += 5;
     });
@@ -549,15 +577,15 @@ export async function exportAnalysisToPDF(analysis: FontAnalysis, previewImageBa
     doc.text('Business Suitability', margin, yPosition);
     yPosition += 8;
 
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(10);
+    doc.setFont('times', 'roman');
+    doc.setFontSize(11);
     doc.setTextColor(COLORS.ink);
     const businessText = analysis.businessSuitability.join(' • ');
-    const businessLines = splitText(businessText, contentWidth, 10);
+    const businessLines = splitText(businessText, contentWidth, 11);
     businessLines.forEach((line: string) => {
       checkAndAddPage(7);
       doc.text(line, margin, yPosition);
-      yPosition += 5;
+      yPosition += 6;
     });
     yPosition += 8;
   }
@@ -580,15 +608,15 @@ export async function exportAnalysisToPDF(analysis: FontAnalysis, previewImageBa
     doc.text('Character Set Support', margin, yPosition);
     yPosition += 8;
 
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(10);
+    doc.setFont('times', 'roman');
+    doc.setFontSize(11);
     doc.setTextColor(COLORS.ink);
     const charSetText = analysis.characterSets.join(' • ');
-    const charSetLines = splitText(charSetText, contentWidth, 10);
+    const charSetLines = splitText(charSetText, contentWidth, 11);
     charSetLines.forEach((line: string) => {
       checkAndAddPage(7);
       doc.text(line, margin, yPosition);
-      yPosition += 5;
+      yPosition += 6;
     });
     yPosition += 8;
   }
@@ -596,8 +624,8 @@ export async function exportAnalysisToPDF(analysis: FontAnalysis, previewImageBa
   // Release Year
   if (analysis.releaseYear && analysis.releaseYear.toLowerCase() !== 'unknown') {
     checkAndAddPage(12);
-    doc.setFont('helvetica', 'italic');
-    doc.setFontSize(10);
+    doc.setFont('times', 'italic');
+    doc.setFontSize(11);
     doc.setTextColor(COLORS.muted);
     doc.text(`Originally released: ${analysis.releaseYear}`, margin, yPosition);
     yPosition += 10;
@@ -638,10 +666,10 @@ export async function exportAnalysisToPDF(analysis: FontAnalysis, previewImageBa
   }
 
   // Footer
-  doc.setFont('helvetica', 'italic');
+  doc.setFont('times', 'italic');
   doc.setFontSize(9);
   doc.setTextColor(COLORS.muted);
-  const footerText = 'A FontPair AI Analysis Report • Powered by Google Gemini';
+  const footerText = 'A FontPair AI Analysis Report • The Typography Constitution';
   doc.text(footerText, pageWidth / 2, pageHeight - 14, { align: 'center' });
 
   // Save the PDF

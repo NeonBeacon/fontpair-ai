@@ -29,10 +29,18 @@
         .header {
             margin-bottom: 60px;
         }
+        /* Kept for reference or fallback, but we are using img now */
         .logo {
-            display: block;
-            margin-bottom: 20px;
+            font-size: 28px;
+            font-weight: bold;
+            letter-spacing: -0.5px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
         }
+        .logo-font { color: var(--text-ink); }
+        .logo-plus { color: var(--accent-orange); font-weight: 900; }
+        .logo-pair { color: var(--accent-orange); }
 
         /* Main Content Card */
         .container {
@@ -92,18 +100,8 @@
 </head>
 <body>
     <div class="header">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 100" width="180" height="60" class="logo">
-            <g>
-                <!-- "Font" in dark teal -->
-                <text x="0" y="60" font-family="Inter, Helvetica, Arial, sans-serif" font-size="48" font-weight="800" fill="#1A3431">Font</text>
-                <!-- "+" in orange -->
-                <text x="105" y="60" font-family="Inter, Helvetica, Arial, sans-serif" font-size="48" font-weight="800" fill="#FF8E24">+</text>
-                <!-- "Pair" in orange -->
-                <text x="130" y="60" font-family="Inter, Helvetica, Arial, sans-serif" font-size="48" font-weight="800" fill="#FF8E24">Pair</text>
-                <!-- "AI" subscript -->
-                <text x="230" y="70" font-family="Inter, Helvetica, Arial, sans-serif" font-size="24" font-weight="700" fill="#FF8E24">AI</text>
-            </g>
-        </svg>
+        <!-- Using relative path matching Typography Constitution -->
+        <img src="logo-full.svg" alt="FontPair AI" style="height: 60px; width: auto;">
     </div>
 
     <div class="container">
