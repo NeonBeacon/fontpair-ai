@@ -288,11 +288,7 @@ export async function exportAnalysisToPDF(analysis: FontAnalysis, previewImageBa
     
     doc.addImage(logoData.dataUrl, 'PNG', logoX, logoY, targetWidth, targetHeight);
     
-    // Decorative line under logo - positioned below logo to avoid cut-through
-    // Adjusted spacing to 10px below logo bottom
-    doc.setDrawColor(COLORS.accent);
-    doc.setLineWidth(1);
-    doc.line(pageWidth / 2 - 40, logoY + targetHeight + 20, pageWidth / 2 + 40, logoY + targetHeight + 20);
+
   } else {
     // Fallback text if logo fails
     doc.setFont('helvetica', 'bold');
@@ -302,7 +298,7 @@ export async function exportAnalysisToPDF(analysis: FontAnalysis, previewImageBa
   }
   
   // Main title: Font Name
-  yPosition = 110;
+  yPosition = 120;
   doc.setFont('times', 'bold'); // Serif for headings per Constitution style
   doc.setFontSize(36);
   doc.setTextColor(COLORS.ink);
@@ -316,7 +312,7 @@ export async function exportAnalysisToPDF(analysis: FontAnalysis, previewImageBa
   doc.setDrawColor(COLORS.accent);
   doc.setLineWidth(1.5); // Thicker line for H1
   // Draw line 5px below the last title line baseline
-  doc.line(margin + 40, yPosition - 8, pageWidth - margin - 40, yPosition - 8);
+  doc.line(pageWidth / 2 - 50, yPosition - 8, pageWidth / 2 + 50, yPosition - 8);
   
   yPosition += 10; // Space after line
   
@@ -383,10 +379,7 @@ export async function exportAnalysisToPDF(analysis: FontAnalysis, previewImageBa
   }
   
   // Tagline at bottom of cover
-  doc.setFont('helvetica', 'italic');
-  doc.setFontSize(11);
-  doc.setTextColor(COLORS.muted);
-  doc.text('The Typography Constitution', pageWidth / 2, pageHeight - 35, { align: 'center' });
+  doc.text('Font Analysis Report', pageWidth / 2, pageHeight - 35, { align: 'center' });
   doc.text('AI-Powered Analysis Report', pageWidth / 2, pageHeight - 28, { align: 'center' });
 
   // ===== PAGE 2+: CONTENT PAGES =====
@@ -560,7 +553,13 @@ export async function exportAnalysisToPDF(analysis: FontAnalysis, previewImageBa
       doc.setFont('times', 'italic');
       doc.setFontSize(10);
       doc.setTextColor(COLORS.teal);
-      doc.text(`(${font.source})`, margin + doc.getTextWidth(`${index + 1}. ${font.name}`) + 3, yPosition);
+      const fontNameText = `${index + 1}. ${font.name}`;
+      doc.setFont('helvetica', 'bold'); // Reset to bold to measure correctly
+      doc.setFontSize(12);
+      const nameWidth = doc.getTextWidth(fontNameText);
+      doc.setFont('times', 'italic');
+      doc.setFontSize(10);
+      doc.text(` (${font.source})`, margin + nameWidth + 2, yPosition);
       yPosition += 6;
 
       doc.setFont('times', 'roman');
@@ -688,7 +687,7 @@ export async function exportAnalysisToPDF(analysis: FontAnalysis, previewImageBa
   doc.setFont('times', 'italic');
   doc.setFontSize(9);
   doc.setTextColor(COLORS.muted);
-  const footerText = 'A FontPair AI Analysis Report • The Typography Constitution';
+  const footerText = 'A FontPair AI Analysis Report • Powered by Gemini';
   doc.text(footerText, pageWidth / 2, pageHeight - 14, { align: 'center' });
 
   // Save the PDF
