@@ -32,8 +32,13 @@ export const getAllGoogleFonts = async (): Promise<GoogleFontMetadata[]> => {
     }
 
     try {
-        // Fetch from Google Fonts API (no key required for basic use)
-        const response = await fetch('https://www.googleapis.com/webfonts/v1/webfonts?sort=popularity');
+        // Fetch from Google Fonts API
+        const apiKey = import.meta.env.VITE_GOOGLE_FONTS_API_KEY;
+        const apiUrl = apiKey 
+            ? `https://www.googleapis.com/webfonts/v1/webfonts?sort=popularity&key=${apiKey}`
+            : 'https://www.googleapis.com/webfonts/v1/webfonts?sort=popularity';
+
+        const response = await fetch(apiUrl);
 
         if (!response.ok) {
             throw new Error(`Google Fonts API error: ${response.status}`);

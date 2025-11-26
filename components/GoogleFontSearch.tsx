@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { getGoogleFonts } from '../services/googleFontsService';
+import { getPopularGoogleFonts } from '../services/googleFontsService';
 
 interface GoogleFontSearchProps {
   value: string;
@@ -14,7 +14,7 @@ const GoogleFontSearch: React.FC<GoogleFontSearchProps> = ({ value, onChange }) 
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    getGoogleFonts().then(setFontList);
+    getPopularGoogleFonts(1000).then(fonts => setFontList(fonts.map(f => f.family)));
   }, []);
 
   useEffect(() => {

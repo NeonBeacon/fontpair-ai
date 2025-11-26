@@ -60,32 +60,62 @@ const FontPreview = forwardRef<HTMLDivElement, FontPreviewProps>(({ file, google
             setIsGoogleFontLoading(true);
             try {
                 const sanitizedFontName = googleFontName.replace(/ /g, '+');
-                const fontUrl = `https://fonts.googleapis.com/css2?family=${sanitizedFontName}:ital,wght@0,100..900;1,100..900&display=swap`;
-
-                if (!document.querySelector(`link[href="${fontUrl}"]`)) {
-                    const link = document.createElement('link');
-                    link.rel = 'stylesheet';
-                    link.href = fontUrl;
+                
+                // Try multiple URL formats in order of preference
+                const urlFormats = [
+                    // Standard weights (works for most fonts)
+                    `https://fonts.googleapis.com/css2?family=${sanitizedFontName}:wght@400;700&display=swap`,
+                    // Just the font (uses default weight)
+                    `https://fonts.googleapis.com/css2?family=${sanitizedFontName}&display=swap`,
+                ];
+                
+                let loaded = false;
+                
+                for (const fontUrl of urlFormats) {
+                    // Skip if already loaded
+                    if (document.querySelector(`link[href="${fontUrl}"]`)) {
+                        loaded = true;
+                        break;
+                    }
                     
-                    const promise = new Promise((resolve, reject) => {
-                        link.onload = resolve;
-                        link.onerror = () => reject(new Error('Failed to load font stylesheet.'));
-                    });
-
-                    document.head.appendChild(link);
-                    await promise;
+                    try {
+                        const link = document.createElement('link');
+                        link.rel = 'stylesheet';
+                        link.href = fontUrl;
+                        
+                        const promise = new Promise<void>((resolve, reject) => {
+                            link.onload = () => resolve();
+                            link.onerror = () => reject(new Error('Failed to load stylesheet'));
+                        });
+                        
+                        document.head.appendChild(link);
+                        await promise;
+                        loaded = true;
+                        break; // Success, exit loop
+                    } catch (e) {
+                        // Remove failed link and try next format
+                        const failedLink = document.querySelector(`link[href="${fontUrl}"]`);
+                        if (failedLink) failedLink.remove();
+                        continue;
+                    }
                 }
                 
-                await document.fonts.load(`1em "${googleFontName}"`);
+                if (!loaded) {
+                    throw new Error('Could not load font with any URL format');
+                }
                 
+                // Wait for font to be ready
+                await document.fonts.load(`400 1em "${googleFontName}"`);
+                
+                // Verify font loaded
                 if (document.fonts.check(`1em "${googleFontName}"`)) {
                     setFontFamily(`'${googleFontName}', sans-serif`);
                 } else {
-                    throw new Error(`Font "${googleFontName}" could not be activated after loading. It might not exist on Google Fonts.`);
+                    throw new Error(`Font "${googleFontName}" not found on Google Fonts`);
                 }
             } catch (err) {
                 console.error("Failed to load Google Font:", err);
-                setError(`Could not load Google Font: "${googleFontName}". Please check the name and your network connection.`);
+                setError(`Could not load "${googleFontName}". It may not exist on Google Fonts or may have a different name.`);
             } finally {
                 setIsGoogleFontLoading(false);
             }
