@@ -27,16 +27,13 @@
 
         /* Logo Styling (Top Left) */
         .header {
+            display: flex;
+            justify-content: center;
             margin-bottom: 60px;
         }
-        /* Kept for reference or fallback, but we are using img now */
         .logo {
-            font-size: 28px;
-            font-weight: bold;
-            letter-spacing: -0.5px;
-            display: flex;
-            align-items: center;
-            gap: 4px;
+            display: block;
+            /* Margin handled by header */
         }
         .logo-font { color: var(--text-ink); }
         .logo-plus { color: var(--accent-orange); font-weight: 900; }
