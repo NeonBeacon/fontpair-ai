@@ -1,10 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
-
 export const config = { runtime: 'edge' };
 
 export default async function handler(req: Request) {
@@ -12,12 +7,19 @@ export default async function handler(req: Request) {
     return new Response('Method not allowed', { status: 405 });
   }
 
+  const supabaseUrl = process.env.SUPABASE_URL;
+  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!supabaseUrl || !supabaseKey) {
+    return new Response('Config error', { status: 500 });
+  }
+
+  const supabase = createClient(supabaseUrl, supabaseKey);
+
   try {
     const formData = await req.formData();
     const licenseKey = formData.get('license_key') as string;
-    const email = formData.get('email') as string;
-    const saleTimestamp = formData.get('sale_timestamp') as string;
-    
+
     if (!licenseKey) {
       return new Response('No license key', { status: 400 });
     }
@@ -30,7 +32,6 @@ export default async function handler(req: Request) {
 
     return new Response('OK', { status: 200 });
   } catch (err) {
-    console.error('Webhook error:', err);
     return new Response('OK', { status: 200 });
   }
 }
