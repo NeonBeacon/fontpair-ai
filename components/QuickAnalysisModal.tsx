@@ -5,6 +5,7 @@ import Loader from './Loader';
 import AnalysisResult from './AnalysisResult';
 import { CloseIcon } from './Icons';
 import { saveToHistory } from '../historyService';
+import { canPerformAnalysis, incrementDailyAnalysisCount, isProfessional } from '../services/tierService';
 
 declare var html2canvas: any;
 
@@ -48,6 +49,14 @@ const QuickAnalysisModal: React.FC<QuickAnalysisModalProps> = ({
     if (!isOpen || !fontLoaded || !previewRef.current) return;
 
     const runAnalysis = async () => {
+      // Check daily limit for free users
+      const analysisCheck = canPerformAnalysis();
+      if (!analysisCheck.allowed) {
+        setError(analysisCheck.message || "Daily limit reached.");
+        setIsLoading(false);
+        return;
+      }
+
       setIsLoading(true);
       setError(null);
       
@@ -75,6 +84,11 @@ const QuickAnalysisModal: React.FC<QuickAnalysisModalProps> = ({
 
         // Save to history
         if (result.status === 'success') {
+          // Increment daily count for free users
+          if (!isProfessional()) {
+            incrementDailyAnalysisCount();
+          }
+
           const thumbnailCanvas = document.createElement('canvas');
           const thumbnailWidth = 200;
           const thumbnailHeight = (canvas.height / canvas.width) * thumbnailWidth;
