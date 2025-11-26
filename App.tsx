@@ -17,6 +17,7 @@ import BatchCompatibilityMatrix from './components/BatchCompatibilityMatrix';
 import KeyboardShortcutsModal from './components/KeyboardShortcutsModal';
 import LockedFeatureOverlay from './components/LockedFeatureOverlay';
 import UpgradePrompt from './components/UpgradePrompt';
+import QuickAnalysisModal from './components/QuickAnalysisModal';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { getAIMode, setAIMode, getAPIKey, validateAIMode, isChromeAIAvailable } from './utils/aiSettings';
 import { checkActivationStatus } from './services/licenseService';
@@ -51,6 +52,26 @@ const App: React.FC = () => {
   const [activeProject, setActiveProject] = useState<Project | null>(null);
   const [showTypeScale, setShowTypeScale] = useState(false);
   const [showBatchMatrix, setShowBatchMatrix] = useState(false);
+  
+  // Quick Analysis State
+  const [quickAnalysisFont, setQuickAnalysisFont] = useState<string | null>(null);
+
+  // Find Fonts state persistence
+  const [findFontsState, setFindFontsState] = useState<{
+    description: string;
+    selectedUsageTypes: string[];
+    selectedBusinessTypes: string[];
+    selectedThemes: string[];
+    selectedFontCategories: string[];
+    results: import('./types').FontSuggestionResult | null;
+  }>({
+    description: '',
+    selectedUsageTypes: [],
+    selectedBusinessTypes: [],
+    selectedThemes: [],
+    selectedFontCategories: [],
+    results: null,
+  });
   
   // Tier State
   const [userTier, setUserTierState] = useState<UserTier>(getUserTier());
@@ -254,10 +275,28 @@ const App: React.FC = () => {
   };
 
   const handleAnalyzeFontFromSuggestions = (fontName: string) => {
-    // Switch to comparison view - user can then select the font from Google Fonts dropdown
+    setQuickAnalysisFont(fontName);
+  };
+
+  const handleQuickAnalysisLoadToColumn = (analysis: FontAnalysis, target: 'left' | 'right') => {
+    if (target === 'left') {
+      setLeftAnalysis(analysis);
+    } else {
+      setRightAnalysis(analysis);
+    }
     setViewMode('comparison');
-    // TODO: Could enhance this to auto-select the font in the Google Fonts dropdown
-    console.log(`Suggested font to analyze: ${fontName}`);
+  };
+
+  const handleLoadSearchFromHistory = (item: import('./historyService').SearchHistoryItem) => {
+    setFindFontsState({
+      description: item.searchCriteria.description,
+      selectedUsageTypes: item.searchCriteria.usageTypes,
+      selectedBusinessTypes: item.searchCriteria.businessTypes,
+      selectedThemes: item.searchCriteria.themes,
+      selectedFontCategories: item.searchCriteria.fontCategories,
+      results: item.results,
+    });
+    setViewMode('suggestions');
   };
 
   const handleOnboardingComplete = () => {
@@ -373,7 +412,11 @@ const App: React.FC = () => {
 
       <main className="flex-grow container mx-auto p-4 md:p-8 flex flex-col items-center">
         {viewMode === 'suggestions' ? (
-          <FontSuggestionView onAnalyzeFont={handleAnalyzeFontFromSuggestions} />
+          <FontSuggestionView 
+            onAnalyzeFont={handleAnalyzeFontFromSuggestions} 
+            persistedState={findFontsState}
+            onStateChange={setFindFontsState}
+          />
         ) : sharedAnalysis ? (
           <div className="w-full max-w-4xl">
              <div className="mb-4 text-center">
@@ -482,6 +525,7 @@ const App: React.FC = () => {
         isOpen={showHistory}
         onClose={() => setShowHistory(false)}
         onLoadAnalysis={handleLoadFromHistory}
+        onLoadSearch={handleLoadSearchFromHistory}
       />
 
       <SettingsModal
@@ -508,6 +552,13 @@ const App: React.FC = () => {
         isOpen={showUpgradePrompt} 
         onClose={() => setShowUpgradePrompt(false)} 
         feature={upgradeFeature} 
+      />
+
+      <QuickAnalysisModal
+        isOpen={!!quickAnalysisFont}
+        onClose={() => setQuickAnalysisFont(null)}
+        fontName={quickAnalysisFont || ''}
+        onLoadToColumn={handleQuickAnalysisLoadToColumn}
       />
 
       <OnboardingTour
