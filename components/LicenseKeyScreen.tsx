@@ -241,7 +241,7 @@ const LicenseKeyScreen: React.FC<LicenseKeyScreenProps> = ({ onLicenseValidated 
                 </div>
                 
                 <div className="mt-8 text-center text-xs text-secondary/60 max-w-lg mx-auto">
-                    By continuing, you agree to our Terms of Service and Privacy Policy.
+                    By continuing, you agree to our Terms of Service and <a href="/privacy.html" target="_blank" className="underline hover:text-secondary">Privacy Policy</a>.
                 </div>
             </div>
         </div>

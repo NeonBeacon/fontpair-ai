@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Privacy Policy - FontPair AI</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              'paper-base': '#EBE6D9',
+              'paper-light': '#F2EFE8',
+              'paper-dark': '#D4CAB6',
+              'teal-dark': '#2D4743',
+              'teal-medium': '#4A6661',
+              'teal-light': '#C8D5D2',
+              'text-dark': '#2B2624',
+              'text-light': '#F2EFE8',
+              'text-secondary': '#6B6560',
+              'accent': '#E67E22',
+            },
+            fontFamily: {
+                serif: ['Georgia', 'Times New Roman', 'serif'],
+                sans: ['system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+            }
+          },
+        },
+      };
+    </script>
+    <style>
+        body {
+            font-family: 'Georgia', 'Times New Roman', serif;
+            background-color: #EBE6D9;
+            color: #2B2624;
+            background-image: radial-gradient(#2D4743 0.5px, transparent 0.5px);
+            background-size: 20px 20px;
+        }
+        h1, h2, h3 {
+            font-family: system-ui, -apple-system, sans-serif;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+    
+    <!-- Header -->
+    <header class="w-full px-6 py-6 bg-paper-base border-b-2 border-teal-medium/30">
+        <div class="container mx-auto flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                 <img src="/logo-fp.svg" alt="FontPair AI Logo" class="h-10 w-10 text-teal-dark" />
+                 <span class="font-bold text-teal-dark text-xl tracking-tight">FontPair AI</span>
+            </div>
+            <a href="/" class="px-4 py-2 bg-teal-dark text-paper-light rounded-md text-sm font-bold hover:bg-teal-medium transition-colors">Return to App</a>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-grow container mx-auto px-4 py-12 max-w-3xl">
+        <div class="bg-paper-light p-8 md:p-12 rounded-xl shadow-xl border border-teal-medium/20">
+            <h1 class="text-3xl md:text-4xl font-bold text-teal-dark mb-2">Privacy Policy</h1>
+            <p class="text-text-secondary mb-8">Last updated: November 26, 2025</p>
+
+            <div class="space-y-8">
+                
+                <!-- Data We Collect -->
+                <section>
+                    <h2 class="text-xl font-bold text-accent mb-3 uppercase tracking-wider">Data We Collect</h2>
+                    <p class="mb-2 text-text-dark leading-relaxed">We collect minimal data necessary to operate the service:</p>
+                    <ul class="list-disc pl-5 space-y-1 text-text-dark">
+                        <li><strong>Email Address:</strong> Collected via Supabase Auth (for Free tier) or Gumroad (for Professional tier) to manage your account and license.</li>
+                        <li><strong>License Keys:</strong> To validate your purchase and subscription tier.</li>
+                        <li><strong>Device Fingerprints:</strong> Anonymized identifiers used to enforce activation limits (e.g., max 3 devices for Professional users).</li>
+                    </ul>
+                </section>
+
+                <!-- How We Use Your Data -->
+                <section>
+                    <h2 class="text-xl font-bold text-accent mb-3 uppercase tracking-wider">How We Use Your Data</h2>
+                    <ul class="list-disc pl-5 space-y-1 text-text-dark leading-relaxed">
+                        <li>To authenticate you and provide access to the application.</li>
+                        <li>To validate your license key and ensure compliance with tier limits.</li>
+                        <li>To prevent abuse and enforce activation limits across devices.</li>
+                        <li>To communicate important service updates (we do not send marketing spam).</li>
+                    </ul>
+                </section>
+
+                <!-- Third-Party Services -->
+                <section>
+                    <h2 class="text-xl font-bold text-accent mb-3 uppercase tracking-wider">Third-Party Services</h2>
+                    <p class="mb-2 text-text-dark">We rely on trusted third-party providers for core functionality:</p>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+                        <div class="bg-paper-base p-4 rounded-lg border border-teal-medium/10">
+                            <h3 class="font-bold text-teal-dark mb-1">Supabase</h3>
+                            <p class="text-sm text-text-secondary">Database & Auth</p>
+                        </div>
+                        <div class="bg-paper-base p-4 rounded-lg border border-teal-medium/10">
+                            <h3 class="font-bold text-teal-dark mb-1">Gumroad</h3>
+                            <p class="text-sm text-text-secondary">Payments & Licensing</p>
+                        </div>
+                        <div class="bg-paper-base p-4 rounded-lg border border-teal-medium/10">
+                            <h3 class="font-bold text-teal-dark mb-1">Google Gemini</h3>
+                            <p class="text-sm text-text-secondary">AI Analysis (Your API Key)</p>
+                        </div>
+                    </div>
+                    <p class="mt-4 text-sm text-text-secondary italic">Note: When using "Cloud AI" mode, font data is sent to Google's Gemini API. When using "Chrome AI" (Local), data stays on your device.</p>
+                </section>
+
+                <!-- Data Storage -->
+                <section>
+                    <h2 class="text-xl font-bold text-accent mb-3 uppercase tracking-wider">Data Storage</h2>
+                    <p class="text-text-dark leading-relaxed">
+                        Your account data (email, license) is stored securely in Supabase cloud infrastructure. 
+                        We do not store your uploaded font files or images permanently; they are processed in memory for analysis and then discarded, unless you explicitly save an analysis to your local history.
+                    </p>
+                </section>
+
+                <!-- Your Rights -->
+                <section>
+                    <h2 class="text-xl font-bold text-accent mb-3 uppercase tracking-wider">Your Rights (GDPR)</h2>
+                    <p class="text-text-dark leading-relaxed mb-2">You have the right to:</p>
+                    <ul class="list-disc pl-5 space-y-1 text-text-dark">
+                        <li>Access the personal data we hold about you.</li>
+                        <li>Request correction of inaccurate data.</li>
+                        <li>Request deletion of your data ("Right to be Forgotten").</li>
+                        <li>Request a copy of your data (Data Portability).</li>
+                    </ul>
+                </section>
+
+                <!-- Contact -->
+                <section>
+                    <h2 class="text-xl font-bold text-accent mb-3 uppercase tracking-wider">Contact</h2>
+                    <p class="text-text-dark">
+                        For privacy inquiries or data requests, please contact us at: <br>
+                        <a href="mailto:hello@neonbeacon.co.uk" class="text-teal-dark font-bold hover:underline">hello@neonbeacon.co.uk</a>
+                    </p>
+                </section>
+
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="w-full p-6 text-center text-text-secondary text-sm border-t border-teal-medium/30 bg-paper-base">
+        <p>&copy; 2025 Neon Beacon. All rights reserved.</p>
+    </footer>
+
+</body>
+</html>
