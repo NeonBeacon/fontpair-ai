@@ -33,7 +33,7 @@ const AnalysisColumn: React.FC<AnalysisColumnProps> = ({ analysisResult, onAnaly
     const [googleFont, setGoogleFont] = useState<string>('');
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const [error, setError] = useState<string | null>(null);
-    const fontPreviewRef = useRef<HTMLDivElement>(null);
+    const fontPreviewRef = useRef<any>(null);
     const parsedFontRef = useRef<any>(null);
     const [previewImageBase64, setPreviewImageBase64] = useState<string | undefined>(undefined);
     const [isCachedResult, setIsCachedResult] = useState<boolean>(false);
@@ -117,11 +117,34 @@ const AnalysisColumn: React.FC<AnalysisColumnProps> = ({ analysisResult, onAnaly
             }
 
             // Not cached - proceed with analysis
-            if (!fontPreviewRef.current) throw new Error("Preview element not found.");
+            let elementToCapture = fontPreviewRef.current;
+            if (fontPreviewRef.current && typeof fontPreviewRef.current.getCaptureElement === 'function') {
+                elementToCapture = fontPreviewRef.current.getCaptureElement();
+            }
 
-            const canvas = await html2canvas(fontPreviewRef.current, { backgroundColor: previewColors.background });
-            // Convert to JPEG with 0.85 quality for faster processing
-            const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+            if (!elementToCapture) throw new Error("Preview element not found.");
+
+            const canvas = await html2canvas(elementToCapture, { backgroundColor: previewColors.background });
+            
+            // Resize logic: Max width 1024px
+            let finalCanvas = canvas;
+            if (canvas.width > 1024) {
+                const scale = 1024 / canvas.width;
+                const newWidth = 1024;
+                const newHeight = canvas.height * scale;
+                
+                const resizedCanvas = document.createElement('canvas');
+                resizedCanvas.width = newWidth;
+                resizedCanvas.height = newHeight;
+                const ctx = resizedCanvas.getContext('2d');
+                if (ctx) {
+                    ctx.drawImage(canvas, 0, 0, newWidth, newHeight);
+                    finalCanvas = resizedCanvas;
+                }
+            }
+
+            // Convert to JPEG with 0.8 quality for faster processing
+            const dataUrl = finalCanvas.toDataURL('image/jpeg', 0.8);
             const base64 = dataUrl.split(',')[1];
             const mimeType = 'image/jpeg';
 

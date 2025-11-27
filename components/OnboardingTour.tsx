@@ -155,52 +155,50 @@ export const OnboardingTour: React.FC<OnboardingTourProps> = ({
         }}
       />
 
-      {/* Tooltip Card */}
+      {/* Tooltip Card - Updated for High Contrast (Teal Theme) */}
       <div
-        className="absolute bg-surface rounded-xl shadow-2xl p-6 max-w-md pointer-events-auto"
+        className="absolute bg-[#1A3431] border border-[#008080] rounded-xl shadow-2xl p-6 max-w-md pointer-events-auto"
         style={{
           ...getTooltipPosition(targetPosition, step.placement),
-          minWidth: '350px',
           animation: 'fade-in-up 0.3s ease-out',
           zIndex: 10000
         }}
       >
-        {/* Progress Indicator - Clickable */}
+        {/* Progress Indicator */}
         <div className="flex gap-2 mb-4">
           {ONBOARDING_STEPS.map((_, index) => (
             <div
               key={index}
-              onClick={() => setCurrentStep(index)}
-              className={`h-2 flex-1 rounded-full transition-colors duration-300 cursor-pointer hover:opacity-80 ${
-                index === currentStep ? 'bg-accent' : 'bg-border'
+              className={`h-1.5 flex-1 rounded-full transition-colors duration-300 ${
+                index === currentStep ? 'bg-[#D47C2E]' : 'bg-[#2D4E4A]'
               }`}
             />
           ))}
         </div>
 
-        {/* Content */}
-        <h3 className="text-xl font-bold text-primary mb-3">{step.title}</h3>
-        <p className="text-secondary text-base leading-relaxed mb-6">{step.message}</p>
+        {/* Content - Forced Light Text */}
+        <h3 className="text-xl font-bold text-[#F2EFE8] mb-3">{step.title}</h3>
+        <p className="text-[#e6f2f2] text-base leading-relaxed mb-6">{step.message}</p>
 
         {/* Actions */}
-        <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-between sm:items-center">
+        <div className="flex justify-between items-center">
           <button
             onClick={handleSkip}
-            className="w-full sm:w-auto text-secondary hover:text-primary text-sm font-medium transition-colors py-2"
+            className="text-[#008080] hover:text-[#F2EFE8] text-sm font-medium transition-colors"
           >
             Skip Tour
           </button>
 
           <button
             onClick={handleNext}
-            className="w-full sm:w-auto px-6 py-2.5 bg-accent text-surface rounded-lg font-semibold hover:bg-accent/90 transition-colors"
+            className="px-6 py-2.5 bg-[#D47C2E] text-white rounded-lg font-semibold hover:opacity-90 transition-opacity shadow-md"
           >
             {step.actionText}
           </button>
         </div>
 
         {/* Step Counter */}
-        <p className="text-center text-xs text-secondary/60 mt-4">
+        <p className="text-center text-xs text-[#2D4E4A] mt-4">
           Step {currentStep + 1} of {ONBOARDING_STEPS.length}
         </p>
       </div>

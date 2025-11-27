@@ -210,7 +210,7 @@ const LicenseKeyScreen: React.FC<LicenseKeyScreenProps> = ({ onLicenseValidated 
                                     value={licenseKey}
                                     onChange={(e) => setLicenseKey(e.target.value.toUpperCase())}
                                     placeholder="XXXX-XXXX-XXXX-XXXX"
-                                    className="w-full px-3 py-2 bg-black/20 border border-teal-medium rounded-md text-[#F2EFE8] placeholder-teal-light/30 focus:outline-none focus:ring-1 focus:ring-accent text-sm font-mono tracking-wide"
+                                    className="w-full px-4 py-3 bg-black/20 border border-teal-medium rounded-md text-[#F2EFE8] placeholder-teal-light/30 focus:outline-none focus:ring-2 focus:ring-accent font-mono text-lg tracking-widest text-center uppercase"
                                     disabled={isValidating || (validationResult?.valid ?? false)}
                                 />
                                 {keyError && <p className="text-xs text-red-300 mt-2">{keyError}</p>}
@@ -227,7 +227,7 @@ const LicenseKeyScreen: React.FC<LicenseKeyScreenProps> = ({ onLicenseValidated 
 
                             <div className="text-center">
                                 <a 
-                                    href="https://neonbeacon.gumroad.com/l/fontpair-ai" 
+                                    href="https://www.fontpairai.com/pricing.html" 
                                     target="_blank" 
                                     rel="noopener noreferrer"
                                     className="text-xs text-teal-light underline hover:text-white"

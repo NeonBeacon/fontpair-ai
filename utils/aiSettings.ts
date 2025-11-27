@@ -28,7 +28,8 @@ export const setAIMode = (mode: AIMode): void => {
  * Get the Gemini API key from localStorage
  */
 export const getAPIKey = (): string => {
-    return localStorage.getItem(GEMINI_API_KEY) || '';
+    // MUST check process.env for local .env file support
+    return localStorage.getItem(GEMINI_API_KEY) || process.env.GEMINI_API_KEY || '';
 };
 
 /**

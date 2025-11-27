@@ -1,14 +1,6 @@
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from './supabaseClient';
 import FingerprintJS from '@fingerprintjs/fingerprintjs';
 import { setUserTier } from './tierService';
-
-// Initialize Supabase client
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
-
-const supabase = supabaseUrl && supabaseAnonKey
-    ? createClient(supabaseUrl, supabaseAnonKey)
-    : null;
 
 // LocalStorage keys
 const LICENSE_STORAGE_KEY = 'cadmus_license_data';
@@ -108,7 +100,7 @@ const generateSimpleFingerprint = (): string => {
  * Check if Supabase is configured
  */
 export const isSupabaseConfigured = (): boolean => {
-    return !!supabase && !!supabaseUrl && !!supabaseAnonKey;
+    return !!supabase;
 };
 
 /**

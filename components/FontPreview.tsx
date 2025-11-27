@@ -1,4 +1,4 @@
-import React, { useState, useEffect, forwardRef, useLayoutEffect, useRef } from 'react';
+import React, { useState, useEffect, forwardRef, useLayoutEffect, useRef, useImperativeHandle } from 'react';
 import type { VariableAxis } from '../types';
 import { getAxisDescription } from '../utils/fontUtils';
 import { TooltipInfoIcon, LineChartIcon } from './Icons';
@@ -16,7 +16,11 @@ interface FontPreviewProps {
   onColorChange: (type: 'bg' | 'text', value: string) => void;
 }
 
-const FontPreview = forwardRef<HTMLDivElement, FontPreviewProps>(({ file, googleFontName, initialSentence, isGeneratingSentence, onFontParsed, backgroundColor, textColor, onColorChange }, ref) => {
+export interface FontPreviewHandle {
+  getCaptureElement: () => HTMLDivElement | null;
+}
+
+const FontPreview = forwardRef<FontPreviewHandle, FontPreviewProps>(({ file, googleFontName, initialSentence, isGeneratingSentence, onFontParsed, backgroundColor, textColor, onColorChange }, ref) => {
   const [fontFamily, setFontFamily] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [previewText, setPreviewText] = useState(initialSentence);
@@ -38,6 +42,14 @@ const FontPreview = forwardRef<HTMLDivElement, FontPreviewProps>(({ file, google
   const lowerCaseRef = useRef<HTMLParagraphElement>(null);
   const symbolsRef = useRef<HTMLParagraphElement>(null);
   const metricsTargetRef = useRef<HTMLParagraphElement>(null);
+
+  // New ref for the clean capture zone
+  const captureRef = useRef<HTMLDivElement>(null);
+
+  // Expose the capture element to the parent via ref
+  useImperativeHandle(ref, () => ({
+      getCaptureElement: () => captureRef.current
+  }));
 
   useEffect(() => { setPreviewText(initialSentence); }, [initialSentence]);
 
@@ -235,7 +247,7 @@ const FontPreview = forwardRef<HTMLDivElement, FontPreviewProps>(({ file, google
   const sampleStyle: React.CSSProperties = { fontFamily, fontVariationSettings, WebkitFontSmoothing: 'antialiased', MozOsxFontSmoothing: 'grayscale', color: textColor };
 
   return (
-    <div ref={ref} style={{ backgroundColor }} className="text-primary p-4 rounded-lg space-y-4">
+    <div style={{ backgroundColor }} className="text-primary p-4 rounded-lg space-y-4">
         <div className="flex justify-between items-center border-b border-border pb-4">
             <h3 className="text-lg font-bold text-accent">Font Preview</h3>
             <div className="flex items-center gap-2">
@@ -301,7 +313,7 @@ const FontPreview = forwardRef<HTMLDivElement, FontPreviewProps>(({ file, google
             )}
         </div>
         
-        <div style={sampleStyle} className="break-words pt-4">
+        <div ref={captureRef} style={{ ...sampleStyle, backgroundColor }} className="break-words pt-4 p-2 rounded">
             <p style={{ fontSize: 'clamp(2rem, 8vw, 4rem)', lineHeight, letterSpacing: `${letterSpacing}em` }} className="mb-6 overflow-hidden break-words">{previewText}</p>
             <div ref={charSetContainerRef} className="space-y-2 text-secondary break-all">
                 <div className="relative">

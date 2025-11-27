@@ -1,5 +1,7 @@
 import type { GoogleFontMetadata } from '../types';
 
+const FONTS_API_KEY = "AIzaSyD2KJ6zf7yqAbxXEgMgd7EmhXpYOoKYnUI";
+
 // A curated list of popular Google Fonts (fallback).
 const popularFonts = [
   'Roboto', 'Open Sans', 'Lato', 'Montserrat', 'Roboto Condensed', 'Source Sans Pro', 'Oswald',
@@ -33,10 +35,8 @@ export const getAllGoogleFonts = async (): Promise<GoogleFontMetadata[]> => {
 
     try {
         // Fetch from Google Fonts API
-        const apiKey = import.meta.env.VITE_GOOGLE_FONTS_API_KEY;
-        const apiUrl = apiKey 
-            ? `https://www.googleapis.com/webfonts/v1/webfonts?sort=popularity&key=${apiKey}`
-            : 'https://www.googleapis.com/webfonts/v1/webfonts?sort=popularity';
+        // Append &key=${FONTS_API_KEY} to the fetch URL
+        const apiUrl = `https://www.googleapis.com/webfonts/v1/webfonts?sort=popularity&key=${FONTS_API_KEY}`;
 
         const response = await fetch(apiUrl);
 
@@ -59,8 +59,9 @@ export const getAllGoogleFonts = async (): Promise<GoogleFontMetadata[]> => {
 
         return fonts;
     } catch (error) {
-        console.error('Failed to fetch Google Fonts from API:', error);
-        // Fallback to static list
+        // Falls back to curated list if API fails or key is invalid for Fonts API
+        console.warn('Failed to fetch Google Fonts from API:', error); // Use console.warn
+        // Fallback to static list silently
         return getFallbackFonts();
     }
 };
@@ -108,7 +109,7 @@ function getCachedFonts(): GoogleFontMetadata[] | null {
 
         return data.fonts;
     } catch (error) {
-        console.error('Error reading font cache:', error);
+        console.error('Error reading font cache:', error); // Keep error for cache read issues
         return null;
     }
 }
@@ -121,7 +122,7 @@ function cacheFonts(fonts: GoogleFontMetadata[]): void {
         };
         localStorage.setItem(CACHE_KEY, JSON.stringify(data));
     } catch (error) {
-        console.error('Error caching fonts:', error);
+        console.error('Error caching fonts:', error); // Keep error for cache write issues
     }
 }
 
