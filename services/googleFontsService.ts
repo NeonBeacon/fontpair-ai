@@ -1,6 +1,6 @@
 import type { GoogleFontMetadata } from '../types';
 
-const FONTS_API_KEY = "AIzaSyD2KJ6zf7yqAbxXEgMgd7EmhXpYOoKYnUI";
+const FONTS_API_KEY = import.meta.env.VITE_GOOGLE_FONTS_API_KEY || '';
 
 // A curated list of popular Google Fonts (fallback).
 const popularFonts = [
@@ -26,6 +26,10 @@ interface CachedFonts {
  * Uses caching to minimize API calls (7-day expiry).
  */
 export const getAllGoogleFonts = async (): Promise<GoogleFontMetadata[]> => {
+    if (!FONTS_API_KEY) {
+        console.warn('Google Fonts API key is missing. Using fallback fonts.');
+        return getFallbackFonts();
+    }
     // Check cache first
     const cached = getCachedFonts();
     if (cached) {
