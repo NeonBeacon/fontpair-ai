@@ -62,15 +62,14 @@ const UpgradePrompt: React.FC<UpgradePromptProps> = ({ isOpen, onClose, feature 
            <div className="relative z-10 mt-auto">
               <div className="text-4xl font-bold text-[#F2EFE8] mb-1">£48.99</div>
               <p className="text-sm text-teal-light mb-6">One-time payment. Lifetime access.</p>
-              <a 
-                href="https://neonbeacon.gumroad.com/l/fontpair-ai" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="block w-full py-3 bg-[#FF8E24] text-[#1A3431] text-center font-bold rounded-lg hover:bg-white transition-colors shadow-lg"
-              >
-                Buy Professional
-              </a>
-           </div>
+                            <a
+                              href="https://www.fontpairai.com/pricing.html"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="block w-full py-3 bg-[#FF8E24] text-[#1A3431] text-center font-bold rounded-lg hover:bg-white transition-colors shadow-lg"
+                            >
+                              Buy Professional
+                            </a>           </div>
         </div>
 
         {/* Right Column: Feature Comparison */}
