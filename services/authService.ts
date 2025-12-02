@@ -20,7 +20,10 @@ export const signInWithMagicLink = async (email: string) => {
   const { data, error } = await supabase.auth.signInWithOtp({
     email,
     options: {
-      emailRedirectTo: window.location.origin,
+      // In production, redirect to the app URL. In dev, stay on localhost.
+      emailRedirectTo: import.meta.env.PROD 
+        ? 'https://app.fontpairai.com/' 
+        : window.location.origin,
     }
   });
   
