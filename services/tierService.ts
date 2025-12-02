@@ -120,3 +120,14 @@ export function canPerformAnalysis(): { allowed: boolean; remaining: number | nu
 export function isProfessional(): boolean {
   return getUserTier() === 'professional';
 }
+
+export async function initializeTierFromSession(): Promise<UserTier> {
+  // Check localStorage first for pro users
+  const storedTier = getUserTier();
+  if (storedTier === 'professional') {
+    return 'professional';
+  }
+  
+  // For non-pro users, they're free tier if they have a session
+  return 'free';
+}

@@ -106,53 +106,92 @@ const App: React.FC = () => {
     }
   });
 
-  // Consolidated Authentication & License Check on mount, and listen for auth changes
+  // Consolidated Authentication & License Check on mount
   useEffect(() => {
+    let mounted = true;
+
     const handleAuthAndLicenseCheck = async () => {
+      if (!mounted) return;
+      
       setIsCheckingLicense(true);
+      
       try {
-        // 1. Check for Supabase Session (Free Tier)
-        const { data: { session } } = await supabase.auth.getSession();
+        // IMPORTANT: Get the session - this also handles Magic Link token exchange
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error('Session error:', error);
+        }
+        
         if (session) {
-          console.log("✅ Free Access Session Active (initial check)");
+          console.log("✅ Valid session found for:", session.user?.email);
+          if (mounted) {
+            setUserTier('free');
+            setUserTierState('free');
+            setIsLicenseValid(true);
+            setIsCheckingLicense(false);
+          }
+          return;
+        }
+
+        // No session - check for Professional License Key
+        console.log("No session, checking license key...");
+        const result = await checkActivationStatus();
+        
+        if (mounted) {
+          setIsLicenseValid(result.valid);
+          setUserTierState(getUserTier());
+          setIsCheckingLicense(false);
+        }
+        
+      } catch (error) {
+        console.error('Auth/license check failed:', error);
+        if (mounted) {
+          setIsLicenseValid(false);
+          setIsCheckingLicense(false);
+        }
+      }
+    };
+
+    // Set up the auth state change listener FIRST
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        console.log('Auth event:', event, 'Session:', !!session);
+        
+        if (!mounted) return;
+
+        if (event === 'SIGNED_IN' && session) {
+          console.log("✅ User signed in via Magic Link");
           setUserTier('free');
           setUserTierState('free');
           setIsLicenseValid(true);
           setIsCheckingLicense(false);
-          return; // Session found, no need to check for pro license immediately
+        } else if (event === 'TOKEN_REFRESHED' && session) {
+          console.log("🔄 Token refreshed");
+          // Session is still valid, no state change needed
+        } else if (event === 'SIGNED_OUT') {
+          console.log("👋 User signed out");
+          setIsLicenseValid(false);
+          setUserTier('free');
+          setUserTierState('free');
+        } else if (event === 'INITIAL_SESSION') {
+          // This fires on page load with the current session state
+          console.log("🚀 Initial session check:", !!session);
+          if (session) {
+            setUserTier('free');
+            setUserTierState('free');
+            setIsLicenseValid(true);
+            setIsCheckingLicense(false);
+          }
         }
-
-        // 2. If no Supabase Session, check for License Key (Pro Tier)
-        const result = await checkActivationStatus();
-        setIsLicenseValid(result.valid);
-        setUserTierState(getUserTier()); // Update tier based on license check
-      } catch (error) {
-        console.error('Initial license/auth check failed:', error);
-        setIsLicenseValid(false);
-      } finally {
-        setIsCheckingLicense(false);
       }
-    };
+    );
 
+    // Then check for existing session
     handleAuthAndLicenseCheck();
 
-    // Listen for auth changes (e.g. coming from Magic Link redirect)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_IN' && session) {
-        console.log("✅ User signed in via Magic Link (auth listener)");
-        setUserTier('free');
-        setUserTierState('free');
-        setIsLicenseValid(true);
-        setIsCheckingLicense(false);
-      } else if (event === 'SIGNED_OUT') {
-         console.log("User signed out.");
-         setIsLicenseValid(false);
-         // After sign-out, trigger a full re-check to ensure license status is correctly reflected
-         handleAuthAndLicenseCheck();
-      }
-    });
-
     return () => {
+      mounted = false;
       subscription.unsubscribe();
     };
   }, []); // Empty dependency array means this runs once on mount and cleans up on unmount.
@@ -468,13 +507,18 @@ const App: React.FC = () => {
                   <div className="sticky top-4 z-20 flex justify-center gap-3 mb-6 flex-wrap">
                       <button
                           onClick={() => {
-                            if (!checkFeatureAccess('Full Pairing Critique')) return;
+                            if (userTier === 'free') {
+                                setUpgradeFeature('Full Pairing Critique');
+                                setShowUpgradePrompt(true);
+                                return;
+                            }
                             handleCritique();
                           }}
-                          disabled={isCritiquing || !isProfessional()}
-                          className={`px-6 py-3 bg-accent text-text-light font-bold rounded-full hover:opacity-90 disabled:bg-secondary disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 transform hover:scale-105 shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:ring-accent flex items-center gap-2 ${!isProfessional() ? 'opacity-70' : ''}`}
+                          disabled={isCritiquing || userTier === 'free'}
+                          className={`px-6 py-3 bg-accent text-text-light font-bold rounded-full hover:opacity-90 disabled:bg-secondary disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 transform hover:scale-105 shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:ring-accent flex items-center gap-2 ${userTier === 'free' ? 'opacity-70' : ''}`}
+                          title={userTier === 'free' ? 'Professional Tier Only' : undefined}
                       >
-                          {!isProfessional() ? <LockIcon className="w-4 h-4" /> : <SparklesIcon className={`w-5 h-5 ${isCritiquing ? 'animate-spin' : ''}`} />}
+                          {userTier === 'free' ? <LockIcon className="w-4 h-4" /> : <SparklesIcon className={`w-5 h-5 ${isCritiquing ? 'animate-spin' : ''}`} />}
                           {isCritiquing ? 'Critiquing...' : 'Critique Pairing'}
                       </button>
                       <button
@@ -487,13 +531,18 @@ const App: React.FC = () => {
                       </button>
                       <button
                           onClick={() => {
-                            if (!checkFeatureAccess('Type Scale Builder')) return;
+                            if (userTier === 'free') {
+                                setUpgradeFeature('Type Scale Builder');
+                                setShowUpgradePrompt(true);
+                                return;
+                            }
                             setShowTypeScale(true);
                           }}
-                          disabled={!isProfessional()}
-                          className={`px-6 py-3 bg-teal-medium text-text-light font-bold rounded-full hover:bg-teal-dark transition-all duration-300 transform hover:scale-105 shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:ring-teal-light flex items-center gap-2 ${!isProfessional() ? 'opacity-70 cursor-not-allowed' : ''}`}
+                          disabled={userTier === 'free'}
+                          className={`px-6 py-3 bg-teal-medium text-text-light font-bold rounded-full hover:bg-teal-dark transition-all duration-300 transform hover:scale-105 shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:ring-teal-light flex items-center gap-2 ${userTier === 'free' ? 'opacity-70 cursor-not-allowed' : ''}`}
+                          title={userTier === 'free' ? 'Professional Tier Only' : undefined}
                       >
-                          {!isProfessional() ? <LockIcon className="w-4 h-4" /> : (
+                          {userTier === 'free' ? <LockIcon className="w-4 h-4" /> : (
                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
                             </svg>
@@ -502,13 +551,18 @@ const App: React.FC = () => {
                       </button>
                       <button
                           onClick={() => {
-                            if (!checkFeatureAccess('Batch Analysis')) return;
+                            if (userTier === 'free') {
+                                setUpgradeFeature('Batch Analysis');
+                                setShowUpgradePrompt(true);
+                                return;
+                            }
                             setShowBatchMatrix(true);
                           }}
-                          disabled={!isProfessional()}
-                          className={`px-6 py-3 bg-surface text-accent font-bold rounded-full border-2 border-accent hover:bg-accent hover:text-surface transition-all duration-300 transform hover:scale-105 shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:ring-accent flex items-center gap-2 ${!isProfessional() ? 'opacity-70 cursor-not-allowed' : ''}`}
+                          disabled={userTier === 'free'}
+                          className={`px-6 py-3 bg-surface text-accent font-bold rounded-full border-2 border-accent hover:bg-accent hover:text-surface transition-all duration-300 transform hover:scale-105 shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:ring-accent flex items-center gap-2 ${userTier === 'free' ? 'opacity-70 cursor-not-allowed' : ''}`}
+                          title={userTier === 'free' ? 'Professional Tier Only' : undefined}
                       >
-                          {!isProfessional() ? <LockIcon className="w-4 h-4" /> : (
+                          {userTier === 'free' ? <LockIcon className="w-4 h-4" /> : (
                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
                             </svg>

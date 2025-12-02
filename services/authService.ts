@@ -17,10 +17,15 @@ export const signUpFree = async (email: string) => {
 export const signInWithMagicLink = async (email: string) => {
   if (!supabase) throw new Error('Supabase not configured');
   
+  // Get the base URL - handles both dev and production
+  const baseUrl = window.location.origin;
+  
   const { data, error } = await supabase.auth.signInWithOtp({
     email,
     options: {
-      emailRedirectTo: window.location.origin,
+      // Ensure we redirect to the root, not a specific page
+      emailRedirectTo: `${baseUrl}/`,
+      shouldCreateUser: true, // Allow new user creation
     }
   });
   
