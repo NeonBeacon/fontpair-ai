@@ -380,11 +380,13 @@ const App: React.FC = () => {
     setQuickAnalysisFont(fontName);
   };
 
-  const handleQuickAnalysisLoadToColumn = (analysis: FontAnalysis, target: 'left' | 'right') => {
+  const handleQuickAnalysisLoadToColumn = (analysis: FontAnalysis, target: 'left' | 'right', previewImage?: string) => {
     if (target === 'left') {
       setLeftAnalysis(analysis);
+      if (previewImage) setLeftPreviewImage(previewImage);
     } else {
       setRightAnalysis(analysis);
+      if (previewImage) setRightPreviewImage(previewImage);
     }
     setViewMode('comparison');
   };

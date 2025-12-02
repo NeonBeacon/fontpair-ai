@@ -59,7 +59,7 @@ const GlyphComparisonModal: React.FC<GlyphComparisonModalProps> = ({
           {/* Overall Assessment */}
           <div className="bg-background/50 rounded-lg p-4 border border-border mb-6">
             <h3 className="text-lg font-bold text-accent mb-3">Overall Assessment</h3>
-            <p className="text-secondary leading-relaxed">{comparison.overallAssessment}</p>
+            <p className="text-text-light leading-relaxed">{comparison.overallAssessment}</p>
           </div>
 
           {/* Character Comparisons */}
@@ -73,11 +73,11 @@ const GlyphComparisonModal: React.FC<GlyphComparisonModalProps> = ({
                 {/* Character Header */}
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-4">
-                    <div className="text-5xl font-bold text-primary bg-surface px-4 py-2 rounded border border-border">
+                    <div className="text-5xl font-bold text-text-light bg-teal-dark px-4 py-2 rounded border border-border">
                       {glyph.character}
                     </div>
                     <div>
-                      <h4 className="text-xl font-bold text-primary">
+                      <h4 className="text-xl font-bold text-text-light">
                         Character: '{glyph.character}'
                       </h4>
                       <div className="flex items-center gap-2 mt-1">
@@ -105,19 +105,19 @@ const GlyphComparisonModal: React.FC<GlyphComparisonModalProps> = ({
 
                 {/* Side-by-side Analysis */}
                 <div className="grid md:grid-cols-2 gap-4 mb-4">
-                  <div className="bg-surface/50 rounded-lg p-4 border border-border">
-                    <h5 className="font-semibold text-accent mb-2 text-sm">
+                  <div className="bg-teal-dark/60 rounded-lg p-4 border border-border">
+                    <h5 className="font-bold text-accent mb-2 text-base">
                       {font1Name}
                     </h5>
-                    <p className="text-secondary text-sm leading-relaxed">
+                    <p className="text-[#EDF7F6] text-sm leading-relaxed">
                       {glyph.font1Analysis}
                     </p>
                   </div>
-                  <div className="bg-surface/50 rounded-lg p-4 border border-border">
-                    <h5 className="font-semibold text-accent mb-2 text-sm">
+                  <div className="bg-teal-dark/60 rounded-lg p-4 border border-border">
+                    <h5 className="font-bold text-accent mb-2 text-base">
                       {font2Name}
                     </h5>
-                    <p className="text-secondary text-sm leading-relaxed">
+                    <p className="text-[#EDF7F6] text-sm leading-relaxed">
                       {glyph.font2Analysis}
                     </p>
                   </div>
@@ -125,15 +125,15 @@ const GlyphComparisonModal: React.FC<GlyphComparisonModalProps> = ({
 
                 {/* Differences */}
                 {glyph.differences && glyph.differences.length > 0 && (
-                  <div className="bg-surface/30 rounded-lg p-4">
-                    <h5 className="font-semibold text-primary mb-2 text-sm">
+                  <div className="bg-teal-dark/50 rounded-lg p-4">
+                    <h5 className="font-semibold text-text-light mb-2 text-sm">
                       Key Differences
                     </h5>
                     <ul className="space-y-1">
                       {glyph.differences.map((diff, diffIndex) => (
                         <li
                           key={diffIndex}
-                          className="text-secondary text-sm flex items-start"
+                          className="text-text-light text-sm flex items-start"
                         >
                           <span className="text-accent mr-2">•</span>
                           <span>{diff}</span>
