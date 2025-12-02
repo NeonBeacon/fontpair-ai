@@ -106,59 +106,59 @@ const App: React.FC = () => {
     }
   });
 
-  // Check license on mount
+  // Consolidated Authentication & License Check on mount, and listen for auth changes
   useEffect(() => {
-    const checkLicense = async () => {
+    const handleAuthAndLicenseCheck = async () => {
       setIsCheckingLicense(true);
       try {
         // 1. Check for Supabase Session (Free Tier)
-        const session = await getSession();
+        const { data: { session } } = await supabase.auth.getSession();
         if (session) {
+          console.log("✅ Free Access Session Active (initial check)");
           setUserTier('free');
           setUserTierState('free');
           setIsLicenseValid(true);
           setIsCheckingLicense(false);
-          return;
+          return; // Session found, no need to check for pro license immediately
         }
 
-        // 2. Check for License Key (Pro Tier)
+        // 2. If no Supabase Session, check for License Key (Pro Tier)
         const result = await checkActivationStatus();
         setIsLicenseValid(result.valid);
-        // Update local tier state after check
-        setUserTierState(getUserTier());
+        setUserTierState(getUserTier()); // Update tier based on license check
       } catch (error) {
-        console.error('License check failed:', error);
+        console.error('Initial license/auth check failed:', error);
         setIsLicenseValid(false);
       } finally {
         setIsCheckingLicense(false);
       }
     };
 
-    checkLicense();
-  }, []);
+    handleAuthAndLicenseCheck();
 
-  // Listen for auth changes (e.g. coming from Magic Link)
-  useEffect(() => {
-    if (!supabase) return;
-
-    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+    // Listen for auth changes (e.g. coming from Magic Link redirect)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_IN' && session) {
-        console.log('User signed in via Magic Link!', session);
+        console.log("✅ User signed in via Magic Link (auth listener)");
         setUserTier('free');
         setUserTierState('free');
         setIsLicenseValid(true);
         setIsCheckingLicense(false);
-      }
-      if (event === 'SIGNED_OUT') {
+      } else if (event === 'SIGNED_OUT') {
+         console.log("User signed out.");
          setIsLicenseValid(false);
-         setUserTierState('free'); // Reset to free logic or handle as needed
+         // After sign-out, trigger a full re-check to ensure license status is correctly reflected
+         handleAuthAndLicenseCheck();
       }
     });
 
     return () => {
-      authListener.subscription.unsubscribe();
+      subscription.unsubscribe();
     };
-  }, []);
+  }, []); // Empty dependency array means this runs once on mount and cleans up on unmount.
+
+  useEffect(() => {
+    const handleHashChange = () => {
 
   useEffect(() => {
     const handleHashChange = () => {
