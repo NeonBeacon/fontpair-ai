@@ -21,7 +21,7 @@ import QuickAnalysisModal from './components/QuickAnalysisModal';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { getAIMode, setAIMode, getAPIKey, validateAIMode, isChromeAIAvailable } from './utils/aiSettings';
 import { checkActivationStatus } from './services/licenseService';
-import { getSession } from './services/authService';
+import { getSession, supabase } from './services/authService';
 import { getHistory } from './historyService';
 import { getUserTier, setUserTier, isProfessional, canPerformAnalysis, type UserTier } from './services/tierService';
 
@@ -135,6 +135,29 @@ const App: React.FC = () => {
     };
 
     checkLicense();
+  }, []);
+
+  // Listen for auth changes (e.g. coming from Magic Link)
+  useEffect(() => {
+    if (!supabase) return;
+
+    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_IN' && session) {
+        console.log('User signed in via Magic Link!', session);
+        setUserTier('free');
+        setUserTierState('free');
+        setIsLicenseValid(true);
+        setIsCheckingLicense(false);
+      }
+      if (event === 'SIGNED_OUT') {
+         setIsLicenseValid(false);
+         setUserTierState('free'); // Reset to free logic or handle as needed
+      }
+    });
+
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
   }, []);
 
   useEffect(() => {
