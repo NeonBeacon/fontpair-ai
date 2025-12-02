@@ -138,9 +138,12 @@ const LicenseKeyScreen: React.FC<LicenseKeyScreenProps> = ({ onLicenseValidated 
                                             <span>Standard support</span>
                                         </li>
                                     </ul>
-
-                                    <label className="block text-xs font-bold uppercase text-secondary mb-2">Enter your email</label>
+                        
+                                    <label htmlFor="free-email-input" className="block text-xs font-bold uppercase text-secondary mb-2">
+                                        Your Email
+                                    </label>
                                     <input
+                                        id="free-email-input"
                                         type="email"
                                         value={email}
                                         onChange={(e) => setEmail(e.target.value)}
@@ -148,9 +151,12 @@ const LicenseKeyScreen: React.FC<LicenseKeyScreenProps> = ({ onLicenseValidated 
                                         className="w-full px-4 py-3 bg-[#F5F2EB] border border-border rounded-md text-[#2D3E36] placeholder-[#6B7B74] focus:outline-none focus:ring-2 focus:ring-teal-medium transition-all"
                                         disabled={isSendingLink}
                                     />
+                                    <p className="text-xs text-secondary/70 mt-2">
+                                        New or returning? We'll send a magic link either way.
+                                    </p>
                                     {emailError && <p className="text-xs text-red-500 mt-2">{emailError}</p>}
                                 </div>
-
+                        
                                 <button
                                     type="submit"
                                     disabled={isSendingLink || !email}
@@ -158,9 +164,12 @@ const LicenseKeyScreen: React.FC<LicenseKeyScreenProps> = ({ onLicenseValidated 
                                 >
                                     {isSendingLink ? 'Sending...' : 'Send Access Link'}
                                 </button>
+                                
+                                <p className="text-xs text-center text-secondary/50 mt-3">
+                                    Sessions persist in this browser. Use your email to access from other devices.
+                                </p>
                             </form>
-                        ) : (
-                            <div className="flex-grow flex flex-col items-center justify-center text-center p-4 bg-green-50 rounded-lg border border-green-100">
+                        ) : (                            <div className="flex-grow flex flex-col items-center justify-center text-center p-4 bg-green-50 rounded-lg border border-green-100">
                                 <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mb-4">
                                     <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
                                 </div>
@@ -204,8 +213,9 @@ const LicenseKeyScreen: React.FC<LicenseKeyScreenProps> = ({ onLicenseValidated 
                                     </li>
                                 </ul>
 
-                                <label className="block text-xs font-bold uppercase text-teal-light mb-2">Enter License Key</label>
+                                <label htmlFor="license-key-input" className="block text-xs font-bold uppercase text-teal-light mb-2">Enter License Key</label>
                                 <input
+                                    id="license-key-input"
                                     type="text"
                                     value={licenseKey}
                                     onChange={(e) => setLicenseKey(e.target.value.toUpperCase())}
