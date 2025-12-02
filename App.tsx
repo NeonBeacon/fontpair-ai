@@ -391,6 +391,15 @@ const App: React.FC = () => {
     setViewMode('comparison');
   };
 
+  const handleSwapFonts = () => {
+    const tempAnalysis = leftAnalysis;
+    const tempPreview = leftPreviewImage;
+    setLeftAnalysis(rightAnalysis);
+    setLeftPreviewImage(rightPreviewImage);
+    setRightAnalysis(tempAnalysis);
+    setRightPreviewImage(tempPreview);
+  };
+
   const handleLoadSearchFromHistory = (item: import('./historyService').SearchHistoryItem) => {
     setFindFontsState({
       description: item.searchCriteria.description,
@@ -623,11 +632,51 @@ const App: React.FC = () => {
                   </div>
               )}
 
-              <div className="grid grid-cols-1 lg:grid-cols-2 lg:gap-8 w-full">
+              <div className="grid grid-cols-1 lg:grid-cols-2 lg:gap-8 w-full relative">
+                  {/* Left Column - Display/Header Font */}
                   <div data-tour="analysis-column">
+                    <div className="text-center mb-3">
+                      <span className="text-xs uppercase tracking-widest text-teal-light font-semibold">Display / Header Font</span>
+                    </div>
                     <AnalysisColumn key="left" analysisResult={leftAnalysis} onAnalysisComplete={setLeftAnalysis} onPreviewCaptured={setLeftPreviewImage} savedPreviewImage={leftPreviewImage} />
                   </div>
+
+                  {/* Swap Button - Mobile (between stacked columns) */}
+                  {leftAnalysis && rightAnalysis && (
+                    <div className="flex justify-center py-4 lg:hidden">
+                      <button
+                        onClick={handleSwapFonts}
+                        className="flex items-center gap-2 px-4 py-2 bg-accent text-text-light font-semibold rounded-full hover:bg-accent-dark transition-all shadow-lg"
+                        title="Swap fonts between columns"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+                        </svg>
+                        Swap Fonts
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Swap Button - Desktop (centered between columns) */}
+                  {leftAnalysis && rightAnalysis && (
+                    <div className="hidden lg:flex absolute left-1/2 top-8 -translate-x-1/2 z-10">
+                      <button
+                        onClick={handleSwapFonts}
+                        className="p-3 bg-accent text-text-light rounded-full hover:bg-accent-dark transition-all shadow-lg hover:scale-110"
+                        title="Swap fonts between columns"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                        </svg>
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Right Column - Body/Paragraph Font */}
                   <div className="relative">
+                    <div className="text-center mb-3">
+                      <span className="text-xs uppercase tracking-widest text-teal-light font-semibold">Body / Paragraph Font</span>
+                    </div>
                     <AnalysisColumn key="right" analysisResult={rightAnalysis} onAnalysisComplete={setRightAnalysis} onPreviewCaptured={setRightPreviewImage} savedPreviewImage={rightPreviewImage} />
                   </div>
               </div>
