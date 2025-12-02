@@ -159,9 +159,6 @@ const App: React.FC = () => {
 
   useEffect(() => {
     const handleHashChange = () => {
-
-  useEffect(() => {
-    const handleHashChange = () => {
       const hash = window.location.hash.slice(1);
       if (hash) {
         try {
