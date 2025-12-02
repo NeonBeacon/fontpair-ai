@@ -145,7 +145,7 @@ const LicenseKeyScreen: React.FC<LicenseKeyScreenProps> = ({ onLicenseValidated 
                                         value={email}
                                         onChange={(e) => setEmail(e.target.value)}
                                         placeholder="you@example.com"
-                                        className="w-full px-4 py-3 bg-background border border-border rounded-md text-primary focus:outline-none focus:ring-2 focus:ring-teal-medium transition-all"
+                                        className="w-full px-4 py-3 bg-[#F5F2EB] border border-border rounded-md text-[#2D3E36] placeholder-[#6B7B74] focus:outline-none focus:ring-2 focus:ring-teal-medium transition-all"
                                         disabled={isSendingLink}
                                     />
                                     {emailError && <p className="text-xs text-red-500 mt-2">{emailError}</p>}

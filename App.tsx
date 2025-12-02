@@ -116,15 +116,44 @@ const App: React.FC = () => {
       setIsCheckingLicense(true);
       
       try {
-        // IMPORTANT: Get the session - this also handles Magic Link token exchange
-        const { data: { session }, error } = await supabase.auth.getSession();
+        // STEP 1: Check for PKCE code in URL (Magic Link redirect)
+        const urlParams = new URLSearchParams(window.location.search);
+        const code = urlParams.get('code');
         
-        if (error) {
-          console.error('Session error:', error);
+        if (code) {
+          console.log("🔑 Found auth code in URL, exchanging for session...");
+          
+          // Exchange the code for a session
+          const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+          
+          if (error) {
+            console.error("❌ Code exchange failed:", error.message);
+            // Don't return yet - fall through to check for existing session
+          } else if (data.session) {
+            console.log("✅ Session established from code exchange:", data.session.user?.email);
+            
+            // Clean up the URL (remove the code parameter)
+            window.history.replaceState({}, document.title, window.location.pathname);
+            
+            if (mounted) {
+              setUserTier('free');
+              setUserTierState('free');
+              setIsLicenseValid(true);
+              setIsCheckingLicense(false);
+            }
+            return; // Successfully authenticated!
+          }
+        }
+
+        // STEP 2: Check for existing session (returning users)
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        
+        if (sessionError) {
+          console.error('Session error:', sessionError);
         }
         
         if (session) {
-          console.log("✅ Valid session found for:", session.user?.email);
+          console.log("✅ Existing session found for:", session.user?.email);
           if (mounted) {
             setUserTier('free');
             setUserTierState('free');
@@ -134,7 +163,7 @@ const App: React.FC = () => {
           return;
         }
 
-        // No session - check for Professional License Key
+        // STEP 3: No session - check for Professional License Key
         console.log("No session, checking license key...");
         const result = await checkActivationStatus();
         
@@ -153,41 +182,29 @@ const App: React.FC = () => {
       }
     };
 
-    // Set up the auth state change listener FIRST
+    // Set up the auth state change listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         console.log('Auth event:', event, 'Session:', !!session);
         
         if (!mounted) return;
 
-        if (event === 'SIGNED_IN' && session) {
-          console.log("✅ User signed in via Magic Link");
+        if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') && session) {
+          console.log("✅ Auth state changed - user authenticated:", session.user?.email);
           setUserTier('free');
           setUserTierState('free');
           setIsLicenseValid(true);
           setIsCheckingLicense(false);
-        } else if (event === 'TOKEN_REFRESHED' && session) {
-          console.log("🔄 Token refreshed");
-          // Session is still valid, no state change needed
         } else if (event === 'SIGNED_OUT') {
           console.log("👋 User signed out");
           setIsLicenseValid(false);
           setUserTier('free');
           setUserTierState('free');
-        } else if (event === 'INITIAL_SESSION') {
-          // This fires on page load with the current session state
-          console.log("🚀 Initial session check:", !!session);
-          if (session) {
-            setUserTier('free');
-            setUserTierState('free');
-            setIsLicenseValid(true);
-            setIsCheckingLicense(false);
-          }
         }
       }
     );
 
-    // Then check for existing session
+    // Run the auth check
     handleAuthAndLicenseCheck();
 
     return () => {
