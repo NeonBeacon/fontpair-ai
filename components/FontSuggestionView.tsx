@@ -6,6 +6,7 @@ import FontSuggestionCard from './FontSuggestionCard';
 import IndieSpotlight from './IndieSpotlight';
 import Loader from './Loader';
 import { saveSearchToHistory } from '../historyService';
+import { canPerformFindFonts, incrementDailyFindFontsCount, isProfessional } from '../services/tierService';
 
 interface FindFontsPersistedState {
   description: string;
@@ -62,6 +63,13 @@ const FontSuggestionView: React.FC<FontSuggestionViewProps> = ({
       return;
     }
 
+    // Check if user can perform search
+    const searchCheck = canPerformFindFonts();
+    if (!searchCheck.allowed) {
+      setError(searchCheck.message || 'You have exceeded your daily search limit.');
+      return;
+    }
+
     setIsSearching(true);
     setError(null);
     setResults(null);
@@ -90,6 +98,11 @@ const FontSuggestionView: React.FC<FontSuggestionViewProps> = ({
         },
         suggestionsResult
       );
+
+      // Track usage AFTER successful search (only for free users)
+      if (!isProfessional()) {
+        incrementDailyFindFontsCount();
+      }
 
     } catch (err) {
       console.error('Error getting font suggestions:', err);
@@ -161,6 +174,12 @@ const FontSuggestionView: React.FC<FontSuggestionViewProps> = ({
             Clear All
           </button>
         </div>
+
+        {!isProfessional() && (
+          <p className="text-xs text-secondary/70 mt-2 text-center">
+            {canPerformFindFonts().remaining} of 3 searches remaining today
+          </p>
+        )}
 
         {error && (
           <div className="mt-4 bg-red-500/10 border border-red-500/20 rounded-md p-3">

@@ -23,7 +23,7 @@ import { getAIMode, setAIMode, getAPIKey, validateAIMode, isChromeAIAvailable } 
 import { checkActivationStatus } from './services/licenseService';
 import { getSession, supabase } from './services/authService';
 import { getHistory } from './historyService';
-import { getUserTier, setUserTier, isProfessional, canPerformAnalysis, type UserTier } from './services/tierService';
+import { getUserTier, setUserTier, isProfessional, canPerformAnalysis, canPerformCritique, incrementLifetimeCritiqueCount, hasUsedFreeCritique, type UserTier } from './services/tierService';
 
 type ViewMode = 'comparison' | 'suggestions';
 
@@ -313,12 +313,26 @@ const App: React.FC = () => {
   
   const handleCritique = async () => {
       if (!leftAnalysis || !rightAnalysis) return;
+      
+      // Check if user can perform critique
+      const critiqueCheck = canPerformCritique();
+      if (!critiqueCheck.allowed) {
+        setUpgradeFeature('Pairing Critique');
+        setShowUpgradePrompt(true);
+        return;
+      }
+
       setIsCritiquing(true);
       setCritique(null);
       setCritiqueError(null);
       try {
           const result = await critiqueFontPairing(leftAnalysis, rightAnalysis);
           setCritique(result);
+          
+          // Track usage AFTER successful critique (only for free users)
+          if (!isProfessional()) {
+            incrementLifetimeCritiqueCount();
+          }
       } catch (e) {
           console.error("Critique failed:", e);
           setCritiqueError("The AI critique failed. Please try again.");
@@ -436,10 +450,17 @@ const App: React.FC = () => {
           {/* Right: Action Buttons with paper inset effect */}
           <div className="flex items-center gap-3">
             {!isProfessional() && (
-              <div className="hidden md:flex items-center gap-2 mr-2 text-xs text-teal-light/70 bg-black/10 px-3 py-1.5 rounded-full">
-                <span>{canPerformAnalysis().remaining}/3 analyses today</span>
+              <div className="hidden md:flex items-center gap-4 mr-2 text-xs text-teal-light/70 bg-black/10 px-3 py-1.5 rounded-full">
+                <span>{canPerformAnalysis().remaining}/3 analyses</span>
+                <span className="border-l border-teal-light/30 pl-3">
+                  {hasUsedFreeCritique() ? (
+                    <span className="text-amber-400">Critique used</span>
+                  ) : (
+                    <span>1 critique available</span>
+                  )}
+                </span>
                 {canPerformAnalysis().remaining === 0 && (
-                  <button onClick={() => setShowUpgradePrompt(true)} className="text-accent font-bold hover:underline">
+                  <button onClick={() => setShowUpgradePrompt(true)} className="text-accent font-bold hover:underline ml-2">
                     Upgrade
                   </button>
                 )}
@@ -524,19 +545,29 @@ const App: React.FC = () => {
                   <div className="sticky top-4 z-20 flex justify-center gap-3 mb-6 flex-wrap">
                       <button
                           onClick={() => {
-                            if (userTier === 'free') {
-                                setUpgradeFeature('Full Pairing Critique');
-                                setShowUpgradePrompt(true);
-                                return;
+                            const critiqueCheck = canPerformCritique();
+                            if (!critiqueCheck.allowed) {
+                              setUpgradeFeature('Pairing Critique');
+                              setShowUpgradePrompt(true);
+                              return;
                             }
                             handleCritique();
                           }}
-                          disabled={isCritiquing || userTier === 'free'}
-                          className={`px-6 py-3 bg-accent text-text-light font-bold rounded-full hover:opacity-90 disabled:bg-secondary disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 transform hover:scale-105 shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:ring-accent flex items-center gap-2 ${userTier === 'free' ? 'opacity-70' : ''}`}
-                          title={userTier === 'free' ? 'Professional Tier Only' : undefined}
+                          disabled={!leftAnalysis || !rightAnalysis || isCritiquing || hasUsedFreeCritique()}
+                          className={`px-6 py-3 bg-accent text-text-light font-bold rounded-full hover:opacity-90 disabled:bg-secondary disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 transform hover:scale-105 shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:ring-accent flex items-center gap-2 ${
+                            hasUsedFreeCritique() ? 'opacity-70 cursor-not-allowed' : ''
+                          }`}
                       >
-                          {userTier === 'free' ? <LockIcon className="w-4 h-4" /> : <SparklesIcon className={`w-5 h-5 ${isCritiquing ? 'animate-spin' : ''}`} />}
+                          <SparklesIcon className={`w-5 h-5 ${isCritiquing ? 'animate-spin' : ''}`} />
                           {isCritiquing ? 'Critiquing...' : 'Critique Pairing'}
+                          {!isProfessional() && !hasUsedFreeCritique() && (
+                            <span className="ml-1 text-xs bg-white/20 px-2 py-0.5 rounded-full">
+                              1 free
+                            </span>
+                          )}
+                          {hasUsedFreeCritique() && (
+                            <LockIcon className="w-4 h-4 ml-1" />
+                          )}
                       </button>
                       <button
                           onClick={handleGlyphComparison}
@@ -595,16 +626,6 @@ const App: React.FC = () => {
                     <AnalysisColumn key="left" analysisResult={leftAnalysis} onAnalysisComplete={setLeftAnalysis} onPreviewCaptured={setLeftPreviewImage} savedPreviewImage={leftPreviewImage} />
                   </div>
                   <div className="relative">
-                    {!isProfessional() && (
-                        <LockedFeatureOverlay 
-                            featureName="Pairing Analysis" 
-                            upgradeMessage="Upgrade to Professional to unlock dual-font analysis and AI pairing critiques."
-                            onUpgradeClick={() => {
-                                setUpgradeFeature('Dual Analysis');
-                                setShowUpgradePrompt(true);
-                            }}
-                        />
-                    )}
                     <AnalysisColumn key="right" analysisResult={rightAnalysis} onAnalysisComplete={setRightAnalysis} onPreviewCaptured={setRightPreviewImage} savedPreviewImage={rightPreviewImage} />
                   </div>
               </div>
