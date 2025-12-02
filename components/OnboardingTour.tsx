@@ -157,7 +157,7 @@ export const OnboardingTour: React.FC<OnboardingTourProps> = ({
 
       {/* Tooltip Card - Updated for High Contrast (Teal Theme) */}
       <div
-        className="absolute bg-[#1A3431] border border-[#008080] rounded-xl shadow-2xl p-6 max-w-md pointer-events-auto"
+        className="absolute bg-[#1A3431] border border-[#008080] rounded-xl shadow-2xl p-6 max-w-md min-w-[380px] pointer-events-auto"
         style={{
           ...getTooltipPosition(targetPosition, step.placement),
           animation: 'fade-in-up 0.3s ease-out',
@@ -181,19 +181,19 @@ export const OnboardingTour: React.FC<OnboardingTourProps> = ({
         <p className="text-[#e6f2f2] text-base leading-relaxed mb-6">{step.message}</p>
 
         {/* Actions */}
-        <div className="flex justify-between items-center">
-          <button
-            onClick={handleSkip}
-            className="text-[#008080] hover:text-[#F2EFE8] text-sm font-medium transition-colors"
-          >
-            Skip Tour
-          </button>
-
+        <div className="flex flex-col gap-3">
           <button
             onClick={handleNext}
-            className="px-6 py-2.5 bg-[#D47C2E] text-white rounded-lg font-semibold hover:opacity-90 transition-opacity shadow-md"
+            className="w-full px-6 py-2.5 bg-[#D47C2E] text-white rounded-lg font-semibold hover:opacity-90 transition-opacity shadow-md"
           >
             {step.actionText}
+          </button>
+          
+          <button
+            onClick={handleSkip}
+            className="text-[#008080] hover:text-[#F2EFE8] text-sm font-medium transition-colors text-center"
+          >
+            Skip Tour
           </button>
         </div>
 
