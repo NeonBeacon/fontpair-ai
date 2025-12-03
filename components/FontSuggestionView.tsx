@@ -396,10 +396,10 @@ const FontSuggestionView: React.FC<FontSuggestionViewProps> = ({
         <div className="fixed inset-0 z-50 bg-black/80 flex flex-col items-center justify-center">
           <Loader />
           <p className="text-text-light mt-4 text-xl font-bold">
-            {isAnalyzing ? 'Conducting Visual Analysis...' : 'Finding Candidates...'}
+            {isAnalyzing ? 'Conducting Visual Analysis...' : 'Searching...'}
           </p>
           <p className="text-teal-light mt-2 text-sm">
-            {isAnalyzing ? 'AI is visually examining font strokes, weights, and personalities.' : 'Exploring Google Fonts library for matches.'}
+            {isAnalyzing ? 'AI is visually examining font strokes, weights, and personalities.' : 'Finding matching fonts from Google Fonts...'}
           </p>
         </div>
       )}
@@ -441,15 +441,19 @@ const FontSuggestionView: React.FC<FontSuggestionViewProps> = ({
 
       {/* Sticky Analysis Action Bar */}
       {selectedForAnalysis.length > 0 && !isAnalyzing && !isSearching && (
-          <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-surface-dark border border-accent p-4 rounded-xl shadow-2xl z-40 flex items-center gap-4 animate-fade-in-up max-w-2xl w-full mx-4">
-              <div className="flex-1">
-                  <h3 className="text-text-light font-bold text-lg">{selectedForAnalysis.length} Fonts Selected</h3>
-                  <p className="text-teal-light text-xs">Select at least 2 fonts to compare</p>
+          <div className="fixed bottom-0 left-0 right-0 bg-teal-dark border-t border-teal-medium p-4 flex items-center justify-between z-50 animate-fade-in-up">
+              <div>
+                  <span className="text-text-light font-medium">
+                    {selectedForAnalysis.length} Font{selectedForAnalysis.length !== 1 ? 's' : ''} Selected
+                  </span>
+                  <span className="text-teal-light text-sm ml-2">
+                    (Select at least 2 fonts to compare)
+                  </span>
               </div>
               <button 
                 onClick={handleAnalyzeSelection}
                 disabled={selectedForAnalysis.length < 2}
-                className="px-6 py-3 bg-accent text-text-light font-bold rounded-lg hover:bg-accent-dark disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg"
+                className="px-6 py-3 bg-accent text-text-light font-semibold rounded-md hover:opacity-90 disabled:opacity-50"
               >
                 Analyze Fit for My Use Case
               </button>
