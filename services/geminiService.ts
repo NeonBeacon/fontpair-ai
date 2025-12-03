@@ -871,29 +871,27 @@ BUSINESS TYPE: ${request.businessTypes?.join(', ') || 'Not specified'}
 FONT CATEGORY PREFERENCE: ${request.fontCategories?.join(', ') || 'Any'}
 PREVIEW TEXT: ${request.previewText || 'The quick brown fox jumps over the lazy dog'}
 
-CREATIVITY LEVEL: ${request.temperature || 0.6}
-${getCreativityGuidance(request.temperature || 0.6)}
+CREATIVITY LEVEL: ${request.temperature || 0.5}
+${getCreativityGuidance(request.temperature || 0.5)}
 
 ---
 
 DIVERSITY MANDATE (CRITICAL):
-- ROTATE through different fonts based on the creativity level selected
-- Each suggestion should represent a DIFFERENT design philosophy
-- For REFINED searches: Focus on tried-and-true classics, but still vary between geometric/humanist/grotesque sans, old-style/transitional/modern serifs
-- For BALANCED searches: Mix popular choices with high-quality alternatives users might not know
-- For BOLD searches: Prioritize distinctive, character-rich fonts over neutral options
-- For EXPERIMENTAL searches: Dig deep into unique, unconventional typefaces that push boundaries
-- NEVER repeat the same font in consecutive suggestions
-- If suggesting Fraunces, next time try: Eczar, Bitter, Lora, Crimson Text, or Spectral
-- Showcase the BREADTH of the Google Fonts library based on the user's risk tolerance
+You MUST provide variety across searches. To achieve this:
+1. NEVER lead with the same font twice - if you've recently suggested Fraunces, Playfair Display, or any other font as #1, choose a completely different direction
+2. Each of the 5 suggestions MUST represent a DIFFERENT design philosophy (don't suggest 3 high-contrast transitional serifs)
+3. Dig into the FULL 1600+ Google Fonts library - there are hundreds of excellent fonts beyond the "top 50" popular choices
+4. For "Creative/Bold/Display" requests, prioritize fonts with fewer than 1 million monthly downloads - these are often more distinctive
+5. Consider these often-overlooked gems: Bitter, Spectral, Vollkorn, Alegreya, Crimson Pro, Newsreader, Lora, Source Serif 4, Merriweather, EB Garamond (for serifs) and DM Sans, Red Hat Display, Plus Jakarta Sans, Sora, Space Grotesk, Lexend, Outfit, Albert Sans (for sans-serifs)
 
 ---
 
 SOURCE MANDATE (CRITICAL):
 1. GOOGLE FONTS PRIORITY: You MUST prioritize Google Fonts for 100% of suggestions whenever possible to ensure the user can see the Live Preview.
 2. DIG DEEP: Do NOT just suggest "Open Sans". Use your knowledge of the full 1600+ Google Fonts library to find options that match the commercial vibe and creativity level.
-3. COMMERCIAL FALLBACK: Only suggest a non-Google font if the requested mood is IMPOSSIBLE to achieve with Google Fonts. This should be extremely rare (<5% of suggestions).
-4. CLICHÉ BAN: Absolutely NO 'Lobster', 'Bebas Neue', 'Pacifico', 'Comic Sans', 'Papyrus', or 'Bleeding Cowboys'. Refer to Section 4 of Knowledge Base.
+   - Instead of "Futura" (Paid) -> Suggest "Jost" or "Kumbh Sans" (Google).
+   - Instead of "Ogg" (Paid) -> Suggest "Playfair Display", "Cormorant Garamond", or "Libre Baskerville" (Google).
+   - Instead of "Druk" (Paid) -> Suggest "Anton" or "Six Caps" (Google).
 
 HIERARCHY RULES (Section 3):
 - IF Role="Header/Display": Suggest Display/Serif/High-Contrast Sans. NO generic body text fonts (e.g., Open Sans, Roboto for headers).
@@ -925,7 +923,7 @@ Your response MUST be a JSON object conforming to the schema. No markdown.`;
             config: {
                 responseMimeType: 'application/json',
                 responseSchema: fontSuggestionResultSchema,
-                temperature: request.temperature || 0.6, // Use user's preference
+                temperature: request.temperature || 0.5, // Use user's preference
             },
         });
 

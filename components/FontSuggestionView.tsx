@@ -34,11 +34,11 @@ const FONT_CATEGORIES = ['Serif', 'Sans-Serif', 'Display', 'Handwriting', 'Monos
 const mapTemperatureLevel = (level: number): number => {
   const temperatureMap: Record<number, number> = {
     0: 0.2,  // Refined - Conservative, proven fonts
-    1: 0.6,  // Balanced - Professional variety
-    2: 0.85, // Bold - Distinctive, expressive
+    1: 0.5,  // Balanced - Professional variety
+    2: 0.8,  // Bold - Distinctive, expressive
     3: 1.1   // Experimental - Unique, unconventional
   };
-  return temperatureMap[level] || 0.6;
+  return temperatureMap[level] || 0.5;
 };
 
 const FontSuggestionView: React.FC<FontSuggestionViewProps> = ({ 
