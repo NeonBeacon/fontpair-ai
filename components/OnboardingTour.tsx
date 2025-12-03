@@ -156,15 +156,14 @@ export const OnboardingTour: React.FC<OnboardingTourProps> = ({
       />
 
       {/* Tooltip Card - Updated for High Contrast (Teal Theme) */}
-      <div
-        className="absolute bg-[#1A3431] border border-[#008080] rounded-xl shadow-2xl p-6 max-w-md min-w-[380px] pointer-events-auto"
-        style={{
-          ...getTooltipPosition(targetPosition, step.placement),
-          animation: 'fade-in-up 0.3s ease-out',
-          zIndex: 10000
-        }}
-      >
-        {/* Progress Indicator */}
+                <div
+                  className="absolute bg-[#1A3431] border border-[#008080] rounded-xl shadow-2xl p-6 w-[340px] sm:w-[380px] pointer-events-auto"
+                  style={{
+                    ...getTooltipPosition(targetPosition, step.placement),
+                    animation: 'fade-in-up 0.3s ease-out',
+                    zIndex: 10000
+                  }}
+                >        {/* Progress Indicator */}
         <div className="flex gap-2 mb-4">
           {ONBOARDING_STEPS.map((_, index) => (
             <div
@@ -206,106 +205,129 @@ export const OnboardingTour: React.FC<OnboardingTourProps> = ({
   );
 };
 
-// Helper function to calculate tooltip position with edge safety
 const getTooltipPosition = (
   targetPos: { top: number; left: number; width: number; height: number },
   placement?: string
 ): React.CSSProperties => {
   const offset = 20; // Gap between target and tooltip
-  const tooltipWidth = 380; // Approximate tooltip width (minWidth: 350px + padding)
-  const margin = 20; // Screen edge margin
+  
+  // Responsive tooltip width - matches className (340px on mobile, 380px on desktop)
+  const isMobile = window.innerWidth < 640; // sm breakpoint
+  const tooltipWidth = isMobile ? 340 : 380;
+  const margin = 16; // Screen edge margin (reduced for mobile)
 
   // For center placement, no edge checking needed
   if (placement === 'center') {
     return {
       top: '50%',
       left: '50%',
-      transform: 'translate(-50%, -50%)'
+      transform: 'translate(-50%, -50%)',
+      maxWidth: `calc(100vw - ${margin * 2}px)`, // Ensure it fits on tiny screens
     };
   }
 
-  // Calculate the target's right edge
+  // Calculate viewport boundaries
+  const viewportWidth = window.innerWidth;
+  const viewportHeight = window.innerHeight;
   const targetRight = targetPos.left + targetPos.width;
-
-  // Check if target is near right edge of screen
-  const isNearRightEdge = targetRight > window.innerWidth - 50;
-  // Check if target is near left edge of screen
-  const isNearLeftEdge = targetPos.left < 50;
+  
+  // Check if target is near right edge (within tooltip width + margin)
+  const isNearRightEdge = targetRight > viewportWidth - tooltipWidth - margin;
+  // Check if target is near left edge
+  const isNearLeftEdge = targetPos.left < tooltipWidth / 2 + margin;
 
   switch (placement) {
     case 'bottom': {
-      let left = targetPos.left + targetPos.width / 2;
-
-      // Right edge safety: force tooltip to align to right edge
+      const idealLeft = targetPos.left + targetPos.width / 2;
+      
+      // CRITICAL: Right edge - anchor to right side of viewport
       if (isNearRightEdge) {
         return {
-          top: targetPos.top + targetPos.height + offset,
+          top: Math.min(
+            targetPos.top + targetPos.height + offset,
+            viewportHeight - 400 // Ensure tooltip doesn't overflow bottom
+          ),
           right: margin,
-          transform: 'none'
+          transform: 'none',
         };
       }
 
-      // Left edge safety
-      if (left < tooltipWidth / 2 + margin) {
-        left = margin;
+      // Left edge - anchor to left side of viewport
+      if (isNearLeftEdge || idealLeft < tooltipWidth / 2 + margin) {
         return {
-          top: targetPos.top + targetPos.height + offset,
-          left: left,
-          transform: 'none'
+          top: Math.min(
+            targetPos.top + targetPos.height + offset,
+            viewportHeight - 400
+          ),
+          left: margin,
+          transform: 'none',
         };
       }
 
+      // Center aligned (default)
       return {
-        top: targetPos.top + targetPos.height + offset,
-        left: left,
-        transform: 'translateX(-50%)'
+        top: Math.min(
+          targetPos.top + targetPos.height + offset,
+          viewportHeight - 400
+        ),
+        left: idealLeft,
+        transform: 'translateX(-50%)',
       };
     }
+    
     case 'top': {
-      let left = targetPos.left + targetPos.width / 2;
+      const idealLeft = targetPos.left + targetPos.width / 2;
 
       // Right edge safety
       if (isNearRightEdge) {
         return {
-          bottom: window.innerHeight - targetPos.top + offset,
+          bottom: viewportHeight - targetPos.top + offset,
           right: margin,
-          transform: 'none'
+          transform: 'none',
         };
       }
 
       // Left edge safety
-      if (left < tooltipWidth / 2 + margin) {
-        left = margin;
+      if (isNearLeftEdge || idealLeft < tooltipWidth / 2 + margin) {
         return {
-          bottom: window.innerHeight - targetPos.top + offset,
-          left: left,
-          transform: 'none'
+          bottom: viewportHeight - targetPos.top + offset,
+          left: margin,
+          transform: 'none',
         };
       }
 
       return {
-        bottom: window.innerHeight - targetPos.top + offset,
-        left: left,
-        transform: 'translateX(-50%)'
+        bottom: viewportHeight - targetPos.top + offset,
+        left: idealLeft,
+        transform: 'translateX(-50%)',
       };
     }
+    
     case 'right':
       return {
         top: targetPos.top + targetPos.height / 2,
-        left: Math.min(targetPos.left + targetPos.width + offset, window.innerWidth - tooltipWidth - margin),
-        transform: 'translateY(-50%)'
+        left: Math.min(
+          targetPos.left + targetPos.width + offset,
+          viewportWidth - tooltipWidth - margin
+        ),
+        transform: 'translateY(-50%)',
       };
+      
     case 'left':
       return {
         top: targetPos.top + targetPos.height / 2,
-        right: Math.min(window.innerWidth - targetPos.left + offset, window.innerWidth - margin),
-        transform: 'translateY(-50%)'
+        right: Math.min(
+          viewportWidth - targetPos.left + offset,
+          viewportWidth - margin
+        ),
+        transform: 'translateY(-50%)',
       };
+      
     default:
       return {
         top: '50%',
         left: '50%',
-        transform: 'translate(-50%, -50%)'
+        transform: 'translate(-50%, -50%)',
       };
   }
 };
