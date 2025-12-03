@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { CadmusLogoIcon, SparklesIcon, HistoryIcon, SettingsIcon, LockIcon } from './components/Icons';
 import AnalysisColumn from './components/AnalysisColumn';
 import type { FontAnalysis, PairingCritique, GlyphComparisonResult, AIMode, Project } from './types';
-import { critiqueFontPairing, compareGlyphs } from './services/geminiService';
+import { critiqueFontPairing, compareGlyphs, analyzeFont } from './services/geminiService';
 import PairingCritiqueModal from './components/PairingCritiqueModal';
 import HistoryPanel from './components/HistoryPanel';
 import GlyphComparisonModal from './components/GlyphComparisonModal';
@@ -20,6 +20,7 @@ import UpgradePrompt from './components/UpgradePrompt';
 import QuickAnalysisModal from './components/QuickAnalysisModal';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { getAIMode, setAIMode, getAPIKey, validateAIMode, isChromeAIAvailable } from './utils/aiSettings';
+import { generateFontImage } from './utils/fontUtils';
 import { checkActivationStatus } from './services/licenseService';
 import { getSession, supabase } from './services/authService';
 import { getHistory } from './historyService';
@@ -269,6 +270,70 @@ const App: React.FC = () => {
     }
   }, [isLicenseValid]);
 
+  // Process queued fonts from Find Fonts
+  useEffect(() => {
+    const processQueue = async () => {
+      if (viewMode !== 'comparison') return;
+
+      const leftQueue = localStorage.getItem('fontPair_leftQueue');
+      const rightQueue = localStorage.getItem('fontPair_rightQueue');
+      
+      if (!leftQueue && !rightQueue) return;
+
+      if (leftQueue) {
+        try {
+          const { fontName } = JSON.parse(leftQueue);
+          showToast(`Loading ${fontName} into Left slot...`, 'info');
+          
+          const link = document.createElement('link');
+          link.href = `https://fonts.googleapis.com/css2?family=${fontName.replace(/ /g, '+')}:wght@400;700&display=swap`;
+          link.rel = 'stylesheet';
+          document.head.appendChild(link);
+          
+          await new Promise(r => setTimeout(r, 500));
+
+          const imageBase64 = generateFontImage(fontName, 'Abc');
+          const analysis = await analyzeFont(imageBase64, 'image/png', fontName);
+          
+          setLeftAnalysis(analysis);
+          setLeftPreviewImage(imageBase64);
+          localStorage.removeItem('fontPair_leftQueue');
+          showToast(`${fontName} loaded into Left slot`, 'info');
+        } catch (e) {
+          console.error("Failed to load queued left font", e);
+          showToast("Failed to load left font", 'error');
+        }
+      }
+      
+      if (rightQueue) {
+        try {
+          const { fontName } = JSON.parse(rightQueue);
+          showToast(`Loading ${fontName} into Right slot...`, 'info');
+          
+          const link = document.createElement('link');
+          link.href = `https://fonts.googleapis.com/css2?family=${fontName.replace(/ /g, '+')}:wght@400;700&display=swap`;
+          link.rel = 'stylesheet';
+          document.head.appendChild(link);
+          
+          await new Promise(r => setTimeout(r, 500));
+
+          const imageBase64 = generateFontImage(fontName, 'Abc');
+          const analysis = await analyzeFont(imageBase64, 'image/png', fontName);
+          
+          setRightAnalysis(analysis);
+          setRightPreviewImage(imageBase64);
+          localStorage.removeItem('fontPair_rightQueue');
+          showToast(`${fontName} loaded into Right slot`, 'info');
+        } catch (e) {
+          console.error("Failed to load queued right font", e);
+          showToast("Failed to load right font", 'error');
+        }
+      }
+    };
+    
+    processQueue();
+  }, [viewMode]);
+
   // Toast notification state
   const [toast, setToast] = useState<{ message: string; type: 'info' | 'warning' | 'error' } | null>(null);
 
@@ -491,7 +556,7 @@ const App: React.FC = () => {
               }}
             >
               <span className="text-sm">
-                {viewMode === 'suggestions' ? 'Compare Fonts' : 'Find Fonts'}
+                {viewMode === 'suggestions' ? 'Font Pair' : 'Find Fonts'}
               </span>
             </button>
             <button

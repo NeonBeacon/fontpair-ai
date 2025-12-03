@@ -66,6 +66,23 @@ const FontSuggestionView: React.FC<FontSuggestionViewProps> = ({
   const [selectedForAnalysis, setSelectedForAnalysis] = useState<string[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<UseCaseAnalysisResult | null>(null);
+  
+  // Toast State
+  const [toast, setToast] = useState<{message: string, type: string} | null>(null);
+
+  const showToast = (message: string, type: string = 'success') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3000);
+  };
+
+  const handleSendToSlot = (fontName: string, slot: 'left' | 'right') => {
+    const queuedFont = {
+      fontName,
+      timestamp: Date.now()
+    };
+    localStorage.setItem(`fontPair_${slot}Queue`, JSON.stringify(queuedFont));
+    showToast(`${fontName} queued for ${slot === 'left' ? 'Left' : 'Right'} slot. Go to Pair page to view.`, 'success');
+  };
 
   // Sync state changes to parent
   useEffect(() => {
@@ -425,6 +442,7 @@ const FontSuggestionView: React.FC<FontSuggestionViewProps> = ({
                 onAnalyze={onAnalyzeFont} 
                 isSelected={selectedForAnalysis.includes(suggestion.fontName)}
                 onToggleSelect={() => handleToggleSelect(suggestion.fontName)}
+                onSendToSlot={handleSendToSlot}
               />
             ))}
           </div>
@@ -478,6 +496,12 @@ const FontSuggestionView: React.FC<FontSuggestionViewProps> = ({
           <p className="text-text-secondary text-sm max-w-md mx-auto">
             Describe your project or select categories above, then click "Get Font Suggestions" to receive AI-powered recommendations
           </p>
+        </div>
+      )}
+      {/* Toast Notification */}
+      {toast && (
+        <div className="fixed bottom-24 left-1/2 transform -translate-x-1/2 bg-accent text-text-light px-6 py-3 rounded-lg shadow-lg z-[60] animate-fade-in text-sm font-semibold border border-white/10">
+          {toast.message}
         </div>
       )}
     </div>

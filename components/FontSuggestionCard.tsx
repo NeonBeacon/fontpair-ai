@@ -24,9 +24,10 @@ interface FontSuggestionCardProps {
     onAnalyze: (fontName: string) => void;
     isSelected: boolean;
     onToggleSelect: () => void;
+    onSendToSlot?: (fontName: string, slot: 'left' | 'right') => void;
 }
 
-const FontSuggestionCard: React.FC<FontSuggestionCardProps> = ({ suggestion, onAnalyze, isSelected, onToggleSelect }) => {
+const FontSuggestionCard: React.FC<FontSuggestionCardProps> = ({ suggestion, onAnalyze, isSelected, onToggleSelect, onSendToSlot }) => {
     const [fontLoaded, setFontLoaded] = useState(false);
     const [isExpanded, setIsExpanded] = useState(false);
 
@@ -78,6 +79,32 @@ const FontSuggestionCard: React.FC<FontSuggestionCardProps> = ({ suggestion, onA
                         </div>
                     </div>
                 </div>
+
+                {isGoogleFont && onSendToSlot && (
+                    <div className="flex items-center gap-1 mr-2">
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onSendToSlot(suggestion.fontName, 'left');
+                            }}
+                            className="px-2 py-1 text-xs font-medium bg-teal-medium/20 text-teal-light hover:bg-accent hover:text-text-light border border-teal-medium/30 rounded transition-colors"
+                            title="Send to Left slot"
+                        >
+                            ← L
+                        </button>
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onSendToSlot(suggestion.fontName, 'right');
+                            }}
+                            className="px-2 py-1 text-xs font-medium bg-teal-medium/20 text-teal-light hover:bg-accent hover:text-text-light border border-teal-medium/30 rounded transition-colors"
+                            title="Send to Right slot"
+                        >
+                            R →
+                        </button>
+                    </div>
+                )}
+
                 <button 
                     onClick={toggleExpand}
                     className="p-1 text-text-secondary hover:text-accent transition-colors"
