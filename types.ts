@@ -139,7 +139,7 @@ export interface FontSuggestion {
     category: string;                 // serif, sans-serif, display, etc.
     rationale: string;                // Why this font fits (2-3 sentences)
     useCases: string[];               // Specific use cases: ["Headers", "Logo"]
-    matchScore: number;               // 1-10 relevance score
+    matchScore?: number;              // 1-10 relevance score (Deprecated: replaced by visual analysis)
     source?: string;                  // Where to get: Google Fonts, Adobe Fonts, Fontshare, etc.
     previewText?: string;             // Optional custom preview text
     alternatives?: Array<{            // Premium alternatives for users with pro subscriptions
@@ -153,6 +153,42 @@ export interface FontSuggestionResult {
     suggestions: FontSuggestion[];    // 3-5 font recommendations
     searchSummary: string;            // Overview of what was searched
     additionalNotes?: string;         // Any helpful context from AI
+}
+
+// Use Case Analysis types
+export interface UseCaseAnalysisRequest {
+  fonts: Array<{
+    name: string;
+    imageBase64: string; // Rendered preview
+    category: string;
+  }>;
+  userRequirements: {
+    description: string;
+    usageTypes: string[];
+    businessTypes: string[];
+    themes: string[];
+    fontCategories: string[];
+  };
+}
+
+export interface FontUseCaseScore {
+  fontName: string;
+  overallScore: number; // 1-10, NOW MEANINGFUL because based on vision
+  visualAnalysis: string; // What the AI actually SEES
+  strengthsForUseCase: string[];
+  weaknessesForUseCase: string[];
+  verdict: 'Excellent' | 'Good' | 'Acceptable' | 'Poor' | 'Not Recommended';
+}
+
+export interface UseCaseAnalysisResult {
+  analysisContext: string; // Summary of what was analyzed
+  rankings: FontUseCaseScore[]; // Sorted best to worst
+  topRecommendation: string; // Font name
+  topRecommendationReason: string;
+  alternativeRecommendation: string;
+  alternativeReason: string;
+  fontsToAvoid: string[]; // Any that don't fit at all
+  avoidanceReasons: string;
 }
 
 // Google Fonts API types

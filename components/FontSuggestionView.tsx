@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import type { FontSuggestionResult } from '../types';
-import { suggestFonts } from '../services/geminiService';
+import type { FontSuggestionResult, UseCaseAnalysisResult } from '../types';
+import { suggestFonts, analyzeUseCaseFit } from '../services/geminiService';
 import CategorySelector from './CategorySelector';
 import FontSuggestionCard from './FontSuggestionCard';
 import IndieSpotlight from './IndieSpotlight';
 import Loader from './Loader';
+import UseCaseAnalysisModal from './UseCaseAnalysisModal';
 import { saveSearchToHistory } from '../historyService';
 import { canPerformFindFonts, incrementDailyFindFontsCount, isProfessional } from '../services/tierService';
+import { generateFontImage } from '../utils/fontUtils';
 
 interface FindFontsPersistedState {
   description: string;
@@ -60,6 +62,11 @@ const FontSuggestionView: React.FC<FontSuggestionViewProps> = ({
   const [results, setResults] = useState<FontSuggestionResult | null>(persistedState?.results || null);
   const [error, setError] = useState<string | null>(null);
 
+  // New State for Use Case Analysis
+  const [selectedForAnalysis, setSelectedForAnalysis] = useState<string[]>([]);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysisResult, setAnalysisResult] = useState<UseCaseAnalysisResult | null>(null);
+
   // Sync state changes to parent
   useEffect(() => {
     if (onStateChange) {
@@ -92,6 +99,7 @@ const FontSuggestionView: React.FC<FontSuggestionViewProps> = ({
     setIsSearching(true);
     setError(null);
     setResults(null);
+    setSelectedForAnalysis([]); // Reset selection on new search
 
     try {
       const request = {
@@ -102,7 +110,7 @@ const FontSuggestionView: React.FC<FontSuggestionViewProps> = ({
         fontCategories: selectedFontCategories.map(c => c.toLowerCase().replace('-', '')),
         previewText: previewText.trim(),
         temperature: mapTemperatureLevel(temperatureLevel),
-        maxResults: 5
+        maxResults: 8 // Increased from 5 to provide more candidates for selection
       };
 
       const suggestionsResult = await suggestFonts(request);
@@ -143,10 +151,55 @@ const FontSuggestionView: React.FC<FontSuggestionViewProps> = ({
     setTemperatureLevel(1); // Reset to Balanced
     setResults(null);
     setError(null);
+    setSelectedForAnalysis([]);
+    setAnalysisResult(null);
+  };
+
+  const handleToggleSelect = (fontName: string) => {
+    setSelectedForAnalysis(prev => 
+      prev.includes(fontName) 
+        ? prev.filter(f => f !== fontName)
+        : [...prev, fontName]
+    );
+  };
+
+  const handleAnalyzeSelection = async () => {
+    if (selectedForAnalysis.length < 2) return;
+    setIsAnalyzing(true);
+    try {
+      const fontsToAnalyze = results?.suggestions.filter(s => selectedForAnalysis.includes(s.fontName)) || [];
+      
+      // Generate images for visual analysis
+      const fontsWithImages = fontsToAnalyze.map(f => ({
+        name: f.fontName,
+        category: f.category,
+        imageBase64: generateFontImage(f.fontName, previewText || 'Abc')
+      }));
+
+      const request = {
+        fonts: fontsWithImages,
+        userRequirements: {
+          description,
+          usageTypes: selectedUsageTypes,
+          businessTypes: selectedBusinessTypes,
+          themes: selectedThemes,
+          fontCategories: selectedFontCategories
+        }
+      };
+
+      const result = await analyzeUseCaseFit(request);
+      setAnalysisResult(result);
+
+    } catch (err) {
+      console.error("Analysis failed", err);
+      setError("Failed to analyze use case fit. Please try again.");
+    } finally {
+      setIsAnalyzing(false);
+    }
   };
 
   return (
-    <div className="max-w-6xl mx-auto p-6">
+    <div className="max-w-6xl mx-auto p-6 pb-24"> {/* Added padding bottom for sticky bar */}
       {/* Header */}
       <div className="mb-8 text-center">
         <h1 className="text-3xl heading-embossed mb-2">Find Perfect Fonts</h1>
@@ -339,27 +392,40 @@ const FontSuggestionView: React.FC<FontSuggestionViewProps> = ({
       </div>
 
       {/* Loading State */}
-      {isSearching && (
-        <div className="flex flex-col items-center justify-center py-12">
+      {(isSearching || isAnalyzing) && (
+        <div className="fixed inset-0 z-50 bg-black/80 flex flex-col items-center justify-center">
           <Loader />
-          <p className="text-text-dark mt-4">Analyzing fonts and finding perfect matches...</p>
+          <p className="text-text-light mt-4 text-xl font-bold">
+            {isAnalyzing ? 'Conducting Visual Analysis...' : 'Finding Candidates...'}
+          </p>
+          <p className="text-teal-light mt-2 text-sm">
+            {isAnalyzing ? 'AI is visually examining font strokes, weights, and personalities.' : 'Exploring Google Fonts library for matches.'}
+          </p>
         </div>
       )}
 
       {/* Results */}
       {results && !isSearching && (
         <div>
-          <div className="mb-6 p-4 bg-accent/10 border border-accent/20 rounded-md">
-            <h2 className="text-sm font-semibold text-accent mb-1">Search Summary</h2>
-            <p className="text-sm text-text-dark">{results.searchSummary}</p>
-            {results.additionalNotes && (
-              <p className="text-sm text-text-secondary mt-2 italic">{results.additionalNotes}</p>
-            )}
+          <div className="mb-6 p-4 bg-accent/10 border border-accent/20 rounded-md flex justify-between items-start">
+            <div>
+                <h2 className="text-sm font-semibold text-accent mb-1">Candidate Selection</h2>
+                <p className="text-sm text-text-dark">Select fonts below to perform a deep visual analysis.</p>
+            </div>
+            <div className="text-right">
+                 <p className="text-sm text-text-secondary">{results.searchSummary}</p>
+            </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-20">
             {results.suggestions.map((suggestion, index) => (
-              <FontSuggestionCard key={index} suggestion={suggestion} onAnalyze={onAnalyzeFont} />
+              <FontSuggestionCard 
+                key={index} 
+                suggestion={suggestion} 
+                onAnalyze={onAnalyzeFont} 
+                isSelected={selectedForAnalysis.includes(suggestion.fontName)}
+                onToggleSelect={() => handleToggleSelect(suggestion.fontName)}
+              />
             ))}
           </div>
 
@@ -371,6 +437,31 @@ const FontSuggestionView: React.FC<FontSuggestionViewProps> = ({
             </div>
           )}
         </div>
+      )}
+
+      {/* Sticky Analysis Action Bar */}
+      {selectedForAnalysis.length > 0 && !isAnalyzing && !isSearching && (
+          <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-surface-dark border border-accent p-4 rounded-xl shadow-2xl z-40 flex items-center gap-4 animate-fade-in-up max-w-2xl w-full mx-4">
+              <div className="flex-1">
+                  <h3 className="text-text-light font-bold text-lg">{selectedForAnalysis.length} Fonts Selected</h3>
+                  <p className="text-teal-light text-xs">Select at least 2 fonts to compare</p>
+              </div>
+              <button 
+                onClick={handleAnalyzeSelection}
+                disabled={selectedForAnalysis.length < 2}
+                className="px-6 py-3 bg-accent text-text-light font-bold rounded-lg hover:bg-accent-dark disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg"
+              >
+                Analyze Fit for My Use Case
+              </button>
+          </div>
+      )}
+
+      {/* Analysis Modal */}
+      {analysisResult && (
+          <UseCaseAnalysisModal 
+            result={analysisResult} 
+            onClose={() => setAnalysisResult(null)} 
+          />
       )}
 
       {/* Empty State */}

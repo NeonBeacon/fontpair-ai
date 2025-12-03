@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import type { FontAnalysis, PairingCritique, GlyphComparisonResult, AIMode, FontSuggestionRequest, FontSuggestionResult, FontDNAResult, TypographyContextResult, BatchCompatibilityResult } from '../types';
+import type { FontAnalysis, PairingCritique, GlyphComparisonResult, AIMode, FontSuggestionRequest, FontSuggestionResult, FontDNAResult, TypographyContextResult, BatchCompatibilityResult, UseCaseAnalysisRequest, UseCaseAnalysisResult } from '../types';
 import { getAIMode, getAPIKey, validateAIMode } from '../utils/aiSettings';
 import { FULL_CONSTITUTION } from '../data/typographyConstitution';
 
@@ -778,7 +778,7 @@ const fontSuggestionSchema = {
             description: "1-2 premium alternatives from Adobe Fonts, Fontshare, or commercial foundries"
         }
     },
-    required: ['fontName', 'category', 'rationale', 'useCases', 'matchScore', 'source', 'previewText', 'alternatives']
+    required: ['fontName', 'category', 'rationale', 'useCases', 'source', 'previewText', 'alternatives']
 };
 
 const fontSuggestionResultSchema = {
@@ -1338,4 +1338,123 @@ FORMAT: Return ONLY valid JSON matching the schema. No markdown.`;
         console.error("Error analyzing batch compatibility:", error);
         throw new Error(parseAPIError(error));
     }
+};
+
+// ===========================
+// Use Case Analysis Service
+// ===========================
+
+const fontUseCaseScoreSchema = {
+    type: Type.OBJECT,
+    properties: {
+        fontName: { type: Type.STRING },
+        overallScore: { type: Type.INTEGER, description: "1-10 score based on visual analysis" },
+        visualAnalysis: { type: Type.STRING, description: "Description of visual characteristics" },
+        strengthsForUseCase: { type: Type.ARRAY, items: { type: Type.STRING } },
+        weaknessesForUseCase: { type: Type.ARRAY, items: { type: Type.STRING } },
+        verdict: { type: Type.STRING, enum: ['Excellent', 'Good', 'Acceptable', 'Poor', 'Not Recommended'] }
+    },
+    required: ['fontName', 'overallScore', 'visualAnalysis', 'strengthsForUseCase', 'weaknessesForUseCase', 'verdict']
+};
+
+const useCaseAnalysisResultSchema = {
+    type: Type.OBJECT,
+    properties: {
+        analysisContext: { type: Type.STRING },
+        rankings: { type: Type.ARRAY, items: fontUseCaseScoreSchema },
+        topRecommendation: { type: Type.STRING },
+        topRecommendationReason: { type: Type.STRING },
+        alternativeRecommendation: { type: Type.STRING },
+        alternativeReason: { type: Type.STRING },
+        fontsToAvoid: { type: Type.ARRAY, items: { type: Type.STRING } },
+        avoidanceReasons: { type: Type.STRING }
+    },
+    required: ['analysisContext', 'rankings', 'topRecommendation', 'topRecommendationReason', 'alternativeRecommendation', 'alternativeReason', 'fontsToAvoid', 'avoidanceReasons']
+};
+
+export const analyzeUseCaseFit = async (
+  request: UseCaseAnalysisRequest
+): Promise<UseCaseAnalysisResult> => {
+  // Validate Cloud AI
+  const validation = await validateAIMode('cloud');
+  if (!validation.valid) {
+    throw new Error(validation.error || "Cloud AI required for use-case analysis");
+  }
+
+  const ai = getCloudAI();
+
+  // Build font image parts for Gemini Vision
+  const fontImageParts = request.fonts.map((font, index) => ({
+    inlineData: {
+      data: font.imageBase64.split(',')[1] || font.imageBase64,
+      mimeType: 'image/png',
+    }
+  }));
+
+  const fontListText = request.fonts
+    .map((f, i) => `Font ${i + 1}: "${f.name}" (${f.category})`)
+    .join('\n');
+
+  const prompt = `ROLE: Senior Typography Director conducting a visual font audit.
+
+CRITICAL: You are receiving ACTUAL IMAGES of these fonts. You must LOOK at the letterforms, not guess based on the font name.
+
+FONTS TO ANALYZE (images attached in order):
+${fontListText}
+
+USER'S REQUIREMENTS:
+- Project: ${request.userRequirements.description || 'Not specified'}
+- Usage: ${request.userRequirements.usageTypes?.join(', ') || 'General'}
+- Business Type: ${request.userRequirements.businessTypes?.join(', ') || 'Not specified'}
+- Desired Mood: ${request.userRequirements.themes?.join(', ') || 'Not specified'}
+- Category Preference: ${request.userRequirements.fontCategories?.join(', ') || 'Any'}
+
+ANALYSIS INSTRUCTIONS:
+
+For each font, VISUALLY EXAMINE:
+1. **Stroke characteristics**: Is it geometric, humanist, or grotesque? Uniform or modulated?
+2. **Terminal style**: Ball terminals, sheared, rounded, serif style?
+3. **Apertures**: Open (friendly) or closed (formal)?
+4. **x-height**: Large (modern/legible) or small (classical)?
+5. **Overall personality**: Does the VISUAL character match the user's mood requirements?
+
+SCORING CRITERIA (1-10):
+- 9-10: Visual characteristics strongly align with ALL user requirements
+- 7-8: Good visual alignment with most requirements, minor mismatches
+- 5-6: Acceptable but has notable visual characteristics that may conflict
+- 3-4: Poor match - visual style contradicts key requirements
+- 1-2: Not recommended - visual style is wrong for this use case
+
+BE HONEST AND SPECIFIC:
+- If a font looks generic despite being labeled "experimental", say so
+- If a font's visual style contradicts the user's mood, explain why
+- Reference specific letterforms you can see (e.g., "the sharp terminals create an aggressive feel")
+
+OUTPUT: JSON matching the schema. Rank fonts from best to worst match.`;
+
+  const contents = {
+    parts: [
+      { text: prompt },
+      ...fontImageParts
+    ]
+  };
+
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: contents,
+      config: {
+        responseMimeType: 'application/json',
+        responseSchema: useCaseAnalysisResultSchema,
+        temperature: 0.3, // Lower for more consistent analysis
+      },
+    });
+
+    const jsonText = response.text.trim();
+    return JSON.parse(jsonText) as UseCaseAnalysisResult;
+
+  } catch (error) {
+    console.error("Error analyzing use case fit:", error);
+    throw new Error(parseAPIError(error));
+  }
 };

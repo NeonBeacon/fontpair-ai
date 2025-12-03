@@ -14,3 +14,24 @@ export const getAxisDescription = (tag: string): string => {
             return `This is a custom font axis defined by the font creator with the technical tag '${tag}'.`;
     }
 };
+
+export const generateFontImage = (fontName: string, text: string = 'Abc'): string => {
+  const canvas = document.createElement('canvas');
+  canvas.width = 400;
+  canvas.height = 200;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return '';
+
+  // Fill background
+  ctx.fillStyle = '#ffffff'; // White background for better AI vision
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Draw text
+  ctx.font = `60px "${fontName}", sans-serif`;
+  ctx.fillStyle = '#000000';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+
+  return canvas.toDataURL('image/png');
+};
