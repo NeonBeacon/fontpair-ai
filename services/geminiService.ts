@@ -753,7 +753,7 @@ const fontSuggestionSchema = {
         },
         rationale: {
             type: Type.STRING,
-            description: "2-3 sentences explaining why this font is suitable for the user's requirements"
+            description: "2-3 sentences explaining why this font suits the user's requirements and creativity preference"
         },
         useCases: {
             type: Type.ARRAY,
@@ -768,13 +768,17 @@ const fontSuggestionSchema = {
             type: Type.STRING,
             description: "Where to get this font (should be 'Google Fonts' for primary suggestions)"
         },
+        previewText: {
+            type: Type.STRING,
+            description: "The custom preview text provided by the user (or default pangram)"
+        },
         alternatives: {
             type: Type.ARRAY,
             items: fontAlternativeSchema,
             description: "1-2 premium alternatives from Adobe Fonts, Fontshare, or commercial foundries"
         }
     },
-    required: ['fontName', 'category', 'rationale', 'useCases', 'matchScore', 'source', 'alternatives']
+    required: ['fontName', 'category', 'rationale', 'useCases', 'matchScore', 'source', 'previewText', 'alternatives']
 };
 
 const fontSuggestionResultSchema = {
@@ -795,6 +799,38 @@ const fontSuggestionResultSchema = {
         }
     },
     required: ['suggestions', 'searchSummary']
+};
+
+const getCreativityGuidance = (temperature: number): string => {
+  if (temperature <= 0.3) {
+    return `USER PREFERENCE: REFINED (Conservative)
+- Prioritize safe, time-tested typefaces with proven track records
+- Suggest established classics that clients and stakeholders will recognize positively
+- Focus on reliability, legibility, and professional polish
+- Examples: Helvetica-alternatives, classic serifs, widely-used sans-serifs
+- Avoid experimental or polarizing choices`;
+  } else if (temperature <= 0.7) {
+    return `USER PREFERENCE: BALANCED (Professional Variety)
+- Mix established favorites with quality alternatives
+- Balance familiarity with subtle character and personality
+- Suggest fonts that are professional yet distinctive
+- Explore the middle ground between safe and bold
+- Focus on versatile, well-crafted options`;
+  } else if (temperature <= 0.95) {
+    return `USER PREFERENCE: BOLD (Distinctive)
+- Prioritize fonts with strong visual presence and character
+- Explore lesser-known gems and expressive options
+- Suggest distinctive choices that make a statement
+- Focus on personality and brand differentiation
+- Balance uniqueness with professionalism`;
+  } else {
+    return `USER PREFERENCE: EXPERIMENTAL (Unconventional)
+- Prioritize uniqueness, originality, and boundary-pushing typography
+- Suggest unconventional, avant-garde, or trend-setting fonts
+- Embrace polarizing choices if they serve the creative vision
+- Focus on differentiation and memorability over broad appeal
+- Explore the edges of the Google Fonts library`;
+  }
 };
 
 /**
@@ -833,33 +869,29 @@ USAGE: ${request.usageTypes?.join(', ') || 'Not specified'}
 MOOD: ${request.themes?.join(', ') || 'Not specified'}
 BUSINESS TYPE: ${request.businessTypes?.join(', ') || 'Not specified'}
 FONT CATEGORY PREFERENCE: ${request.fontCategories?.join(', ') || 'Any'}
+PREVIEW TEXT: ${request.previewText || 'The quick brown fox jumps over the lazy dog'}
+
+CREATIVITY LEVEL: ${request.temperature || 0.6}
+${getCreativityGuidance(request.temperature || 0.6)}
 
 ---
 
-DYNAMIC RISK ADJUSTMENT (CRITICAL):
-Analyze the user's "Mood" and "Usage" inputs above.
-
-- IF inputs include 'Creative', 'Playful', 'Bold', 'Logo', or 'Display':
-  * ACTIVATE "WILD MODE":
-  * Suggestions #1, #2, and #3 MUST be "High Character" options (e.g., Expressive Display Serifs, Chunky Slabs, Unique Scripts, Geometric Display, or Experimental typefaces). ABSOLUTELY NO standard neutral Sans-Serifs (Open Sans, Roboto, Inter, Lato) in these slots.
-  * Suggestions #4 and #5 can be "Safe Anchors" (Professional, highly legible options) to balance the list.
-
-- ELSE (if "Corporate", "Minimal", "Finance", "Legal", "Healthcare"):
-  * ACTIVATE "STABILITY MODE":
-  * Prioritize stability, legibility, and professionalism across all suggestions.
-  * Still avoid clichés - suggest refined, distinguished options (not just the obvious choices).
+DIVERSITY MANDATE (CRITICAL):
+- ROTATE through different fonts based on the creativity level selected
+- Each suggestion should represent a DIFFERENT design philosophy
+- For REFINED searches: Focus on tried-and-true classics, but still vary between geometric/humanist/grotesque sans, old-style/transitional/modern serifs
+- For BALANCED searches: Mix popular choices with high-quality alternatives users might not know
+- For BOLD searches: Prioritize distinctive, character-rich fonts over neutral options
+- For EXPERIMENTAL searches: Dig deep into unique, unconventional typefaces that push boundaries
+- NEVER repeat the same font in consecutive suggestions
+- If suggesting Fraunces, next time try: Eczar, Bitter, Lora, Crimson Text, or Spectral
+- Showcase the BREADTH of the Google Fonts library based on the user's risk tolerance
 
 ---
 
 SOURCE MANDATE (CRITICAL):
 1. GOOGLE FONTS PRIORITY: You MUST prioritize Google Fonts for 100% of suggestions whenever possible to ensure the user can see the Live Preview.
-2. DIG DEEP: Do NOT just suggest "Open Sans". Use your knowledge of the full 1600+ Google Fonts library to find "Wild" and "Creative" options that match commercial vibes.
-   - Instead of "Futura" (Paid) -> Suggest "Jost" or "Kumbh Sans" (Google).
-   - Instead of "Ogg" (Paid) -> Suggest "Fraunces" or "Playfair Display" (Google).
-   - Instead of "Druk" (Paid) -> Suggest "Anton" or "Six Caps" (Google).
-   - Instead of "Proxima Nova" (Paid) -> Suggest "Nunito Sans" or "Outfit" (Google).
-   - Instead of "Gotham" (Paid) -> Suggest "Poppins" or "Manrope" (Google).
-   - Instead of "Brandon Grotesque" (Paid) -> Suggest "Nunito" or "Lexend" (Google).
+2. DIG DEEP: Do NOT just suggest "Open Sans". Use your knowledge of the full 1600+ Google Fonts library to find options that match the commercial vibe and creativity level.
 3. COMMERCIAL FALLBACK: Only suggest a non-Google font if the requested mood is IMPOSSIBLE to achieve with Google Fonts. This should be extremely rare (<5% of suggestions).
 4. CLICHÉ BAN: Absolutely NO 'Lobster', 'Bebas Neue', 'Pacifico', 'Comic Sans', 'Papyrus', or 'Bleeding Cowboys'. Refer to Section 4 of Knowledge Base.
 
@@ -872,28 +904,17 @@ HIERARCHY RULES (Section 3):
 PREMIUM MAPPING (CRITICAL):
 For EACH Google Font suggestion, you MUST provide 1-2 "Premium Alternatives" from sources like Adobe Fonts, Fontshare, Monotype, or commercial foundries.
 - These alternatives should be the "Pro" version of the style the Google Font represents.
-- Examples:
-  * If suggesting "Jost" -> list "Futura" (Adobe Fonts) as alternative
-  * If suggesting "Fraunces" -> list "Ogg" or "Canela" (Commercial) as alternatives
-  * If suggesting "Poppins" -> list "Gotham" or "Proxima Nova" (Adobe Fonts) as alternatives
-  * If suggesting "Playfair Display" -> list "Didot" or "Bodoni" (Adobe Fonts) as alternatives
 - This allows users to see a free preview (Google) but find the pro version if they have a subscription.
 
 ---
 
-FOR EACH SUGGESTION PROVIDE:
-- fontName: Exact Google Font name (for live preview)
-- category: serif, sans-serif, display, handwriting, or monospace
-- rationale: 2-3 sentences explaining fit using typographic principles
-- useCases: Array of use cases (Headers, Body Text, Logo, UI, etc.)
-- matchScore: 1-10 relevance score
-- source: "Google Fonts" (primary suggestions must be Google Fonts)
-- alternatives: Array of 1-2 premium alternatives, each with:
-  * name: Font name (e.g., "Futura")
-  * source: Where to get it (e.g., "Adobe Fonts", "Fontshare", "Monotype")
-  * similarity: Brief comparison (e.g., "95% match", "More refined curves", "Higher contrast")
-
-Order by match score (highest first). Do NOT introduce yourself or reference internal documents.
+FINAL REQUIREMENTS:
+- Order by match score (highest first)
+- Include the user's PREVIEW TEXT in the previewText field for each suggestion
+- Ensure each suggestion aligns with the user's selected CREATIVITY LEVEL
+- Ensure each suggestion represents a DISTINCT typographic approach
+- Avoid suggesting the same fonts repeatedly
+- Do NOT introduce yourself or reference internal documents
 
 Your response MUST be a JSON object conforming to the schema. No markdown.`;
 
@@ -904,7 +925,7 @@ Your response MUST be a JSON object conforming to the schema. No markdown.`;
             config: {
                 responseMimeType: 'application/json',
                 responseSchema: fontSuggestionResultSchema,
-                temperature: 0.2, // Low temperature for consistent, deterministic suggestions
+                temperature: request.temperature || 0.6, // Use user's preference
             },
         });
 

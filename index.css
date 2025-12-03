@@ -326,3 +326,37 @@ body::before {
   mix-blend-mode: overlay;
   border-radius: inherit;
 }
+
+/* Custom range slider styling */
+.slider-custom::-webkit-slider-thumb {
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  background: #FF8E24;
+  cursor: pointer;
+  border-radius: 50%;
+  border: 2px solid #F5F2EB;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.slider-custom::-webkit-slider-thumb:hover {
+  transform: scale(1.1);
+  box-shadow: 0 3px 8px rgba(255, 142, 36, 0.4);
+}
+
+.slider-custom::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  background: #FF8E24;
+  cursor: pointer;
+  border-radius: 50%;
+  border: 2px solid #F5F2EB;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.slider-custom::-moz-range-thumb:hover {
+  transform: scale(1.1);
+  box-shadow: 0 3px 8px rgba(255, 142, 36, 0.4);
+}

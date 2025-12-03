@@ -14,6 +14,8 @@ interface FindFontsPersistedState {
   selectedBusinessTypes: string[];
   selectedThemes: string[];
   selectedFontCategories: string[];
+  previewText: string;
+  temperatureLevel: number;
   results: FontSuggestionResult | null;
 }
 
@@ -28,6 +30,17 @@ const BUSINESS_TYPES = ['Corporate', 'Creative', 'Tech', 'Healthcare', 'Educatio
 const THEMES = ['Modern', 'Classic', 'Elegant', 'Playful', 'Bold', 'Minimal', 'Vintage', 'Industrial', 'Nature-inspired', 'Futuristic'];
 const FONT_CATEGORIES = ['Serif', 'Sans-Serif', 'Display', 'Handwriting', 'Monospace'];
 
+// Map user-friendly temperature levels to AI temperature values
+const mapTemperatureLevel = (level: number): number => {
+  const temperatureMap: Record<number, number> = {
+    0: 0.2,  // Refined - Conservative, proven fonts
+    1: 0.6,  // Balanced - Professional variety
+    2: 0.85, // Bold - Distinctive, expressive
+    3: 1.1   // Experimental - Unique, unconventional
+  };
+  return temperatureMap[level] || 0.6;
+};
+
 const FontSuggestionView: React.FC<FontSuggestionViewProps> = ({ 
   onAnalyzeFont,
   persistedState,
@@ -39,6 +52,10 @@ const FontSuggestionView: React.FC<FontSuggestionViewProps> = ({
   const [selectedBusinessTypes, setSelectedBusinessTypes] = useState<string[]>(persistedState?.selectedBusinessTypes || []);
   const [selectedThemes, setSelectedThemes] = useState<string[]>(persistedState?.selectedThemes || []);
   const [selectedFontCategories, setSelectedFontCategories] = useState<string[]>(persistedState?.selectedFontCategories || []);
+  
+  const [previewText, setPreviewText] = useState(persistedState?.previewText || 'The quick brown fox jumps over the lazy dog');
+  const [temperatureLevel, setTemperatureLevel] = useState(persistedState?.temperatureLevel ?? 1); // Default to Balanced
+
   const [isSearching, setIsSearching] = useState(false);
   const [results, setResults] = useState<FontSuggestionResult | null>(persistedState?.results || null);
   const [error, setError] = useState<string | null>(null);
@@ -52,10 +69,12 @@ const FontSuggestionView: React.FC<FontSuggestionViewProps> = ({
         selectedBusinessTypes,
         selectedThemes,
         selectedFontCategories,
+        previewText,
+        temperatureLevel,
         results,
       });
     }
-  }, [description, selectedUsageTypes, selectedBusinessTypes, selectedThemes, selectedFontCategories, results]);
+  }, [description, selectedUsageTypes, selectedBusinessTypes, selectedThemes, selectedFontCategories, previewText, temperatureLevel, results, onStateChange]);
 
   const handleSearch = async () => {
     if (!description.trim() && selectedUsageTypes.length === 0 && selectedBusinessTypes.length === 0 && selectedThemes.length === 0 && selectedFontCategories.length === 0) {
@@ -81,6 +100,8 @@ const FontSuggestionView: React.FC<FontSuggestionViewProps> = ({
         businessTypes: selectedBusinessTypes,
         themes: selectedThemes,
         fontCategories: selectedFontCategories.map(c => c.toLowerCase().replace('-', '')),
+        previewText: previewText.trim(),
+        temperature: mapTemperatureLevel(temperatureLevel),
         maxResults: 5
       };
 
@@ -118,6 +139,8 @@ const FontSuggestionView: React.FC<FontSuggestionViewProps> = ({
     setSelectedBusinessTypes([]);
     setSelectedThemes([]);
     setSelectedFontCategories([]);
+    setPreviewText('The quick brown fox jumps over the lazy dog');
+    setTemperatureLevel(1); // Reset to Balanced
     setResults(null);
     setError(null);
   };
@@ -150,6 +173,133 @@ const FontSuggestionView: React.FC<FontSuggestionViewProps> = ({
           <div className="flex justify-between items-center mt-1">
             <p className="text-xs text-teal-light">Be specific about your needs for better results</p>
             <p className="text-xs text-teal-light">{description.length}/500</p>
+          </div>
+        </div>
+
+        {/* AI Creativity Control */}
+        <div className="mb-6 p-4 bg-accent/5 border border-accent/20 rounded-md">
+          <div className="flex items-start justify-between mb-3">
+            <div>
+              <label htmlFor="temperature-slider" className="text-sm font-semibold text-text-light flex items-center gap-2">
+                AI Creativity Level
+                <span className="text-xs text-accent font-normal">(Recommendation Style)</span>
+              </label>
+              <p className="text-xs text-text-secondary mt-1">
+                Control how adventurous the AI's font suggestions will be
+              </p>
+            </div>
+          </div>
+          
+          <div className="space-y-3">
+            {/* Slider */}
+            <input
+              id="temperature-slider"
+              type="range"
+              min="0"
+              max="3"
+              step="1"
+              value={temperatureLevel}
+              onChange={(e) => setTemperatureLevel(parseInt(e.target.value))}
+              className="w-full h-2 bg-teal-medium rounded-lg appearance-none cursor-pointer accent-accent slider-custom"
+              style={{
+                background: `linear-gradient(to right, 
+                  #2D4E4A 0%, 
+                  #2D4E4A ${(temperatureLevel / 3) * 100}%, 
+                  #456660 ${(temperatureLevel / 3) * 100}%, 
+                  #456660 100%)`
+              }}
+            />
+            
+            {/* Labels with intelligent signposting */}
+            <div className="grid grid-cols-4 gap-2 text-xs">
+              <button
+                type="button"
+                onClick={() => setTemperatureLevel(0)}
+                className={`text-center p-2 rounded transition-all ${
+                  temperatureLevel === 0 
+                    ? 'bg-accent text-text-light font-semibold' 
+                    : 'text-text-secondary hover:text-text-light hover:bg-teal-medium'
+                }`}
+              >
+                <div className="font-semibold">Refined</div>
+                <div className="text-[10px] opacity-80 mt-0.5">Safe, proven classics</div>
+              </button>
+              
+              <button
+                type="button"
+                onClick={() => setTemperatureLevel(1)}
+                className={`text-center p-2 rounded transition-all ${
+                  temperatureLevel === 1 
+                    ? 'bg-accent text-text-light font-semibold' 
+                    : 'text-text-secondary hover:text-text-light hover:bg-teal-medium'
+                }`}
+              >
+                <div className="font-semibold">Balanced</div>
+                <div className="text-[10px] opacity-80 mt-0.5">Professional variety</div>
+              </button>
+              
+              <button
+                type="button"
+                onClick={() => setTemperatureLevel(2)}
+                className={`text-center p-2 rounded transition-all ${
+                  temperatureLevel === 2 
+                    ? 'bg-accent text-text-light font-semibold' 
+                    : 'text-text-secondary hover:text-text-light hover:bg-teal-medium'
+                }`}
+              >
+                <div className="font-semibold">Bold</div>
+                <div className="text-[10px] opacity-80 mt-0.5">Distinctive character</div>
+              </button>
+              
+              <button
+                type="button"
+                onClick={() => setTemperatureLevel(3)}
+                className={`text-center p-2 rounded transition-all ${
+                  temperatureLevel === 3 
+                    ? 'bg-accent text-text-light font-semibold' 
+                    : 'text-text-secondary hover:text-text-light hover:bg-teal-medium'
+                }`}
+              >
+                <div className="font-semibold">Experimental</div>
+                <div className="text-[10px] opacity-80 mt-0.5">Unique, unconventional</div>
+              </button>
+            </div>
+            
+            {/* Dynamic description based on selection */}
+            <div className="text-xs text-accent bg-accent/10 rounded p-2 border border-accent/20">
+              {temperatureLevel === 0 && (
+                <p><strong>Refined:</strong> Safe, time-tested typefaces with proven track records. Ideal for corporate clients, conservative brands, or when reliability is paramount. Minimal creative risk.</p>
+              )}
+              {temperatureLevel === 1 && (
+                <p><strong>Balanced:</strong> Professional variety with subtle character. Mixes established favorites with quality alternatives. Best for most projects seeking polish with personality.</p>
+              )}
+              {temperatureLevel === 2 && (
+                <p><strong>Bold:</strong> Distinctive fonts with strong visual presence. Explores lesser-known gems and expressive options. Great for creative industries, branding, or making a statement.</p>
+              )}
+              {temperatureLevel === 3 && (
+                <p><strong>Experimental:</strong> Unconventional, boundary-pushing typography. Prioritizes uniqueness and originality over familiarity. Perfect for avant-garde projects or when differentiation is critical.</p>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Custom Preview Text */}
+        <div className="mb-6">
+          <label htmlFor="preview-text" className="block text-sm font-medium text-text-light mb-2">
+            Preview Text <span className="text-text-secondary font-normal">(Optional)</span>
+          </label>
+          <input
+            id="preview-text"
+            type="text"
+            value={previewText}
+            onChange={(e) => setPreviewText(e.target.value)}
+            placeholder="e.g., Your Company Name, Headline Text"
+            className="w-full warm-input border border-border p-3 text-text-dark placeholder-text-secondary focus:ring-2 focus:ring-accent focus:border-accent transition"
+            maxLength={100}
+          />
+          <div className="flex justify-between items-center mt-1">
+            <p className="text-xs text-teal-light">See your actual text in each font preview</p>
+            <p className="text-xs text-teal-light">{previewText.length}/100</p>
           </div>
         </div>
 

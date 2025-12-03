@@ -129,6 +129,8 @@ export interface FontSuggestionRequest {
     businessTypes?: string[];         // Selected business categories
     themes?: string[];                // Selected theme categories
     fontCategories?: string[];        // serif, sans-serif, etc.
+    previewText?: string;             // User provided preview text
+    temperature?: number;             // Creativity level (0.0 - 1.0)
     maxResults?: number;              // Default: 5
 }
 
