@@ -25,12 +25,22 @@ interface AnalysisColumnProps {
     isSharedView?: boolean;
     onPreviewCaptured?: (previewBase64: string) => void;
     savedPreviewImage?: string | null;
+    preSelectedGoogleFont?: string;
+    onPreSelectedFontUsed?: () => void;
 }
 
-const AnalysisColumn: React.FC<AnalysisColumnProps> = ({ analysisResult, onAnalysisComplete, isSharedView = false, onPreviewCaptured, savedPreviewImage }) => {
-    const [mode, setMode] = useState<'upload' | 'google'>('upload');
+const AnalysisColumn: React.FC<AnalysisColumnProps> = ({ 
+    analysisResult, 
+    onAnalysisComplete, 
+    isSharedView = false, 
+    onPreviewCaptured, 
+    savedPreviewImage,
+    preSelectedGoogleFont,
+    onPreSelectedFontUsed
+}) => {
+    const [mode, setMode] = useState<'upload' | 'google'>(preSelectedGoogleFont ? 'google' : 'upload');
     const [file, setFile] = useState<File | null>(null);
-    const [googleFont, setGoogleFont] = useState<string>('');
+    const [googleFont, setGoogleFont] = useState<string>(preSelectedGoogleFont || '');
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const [error, setError] = useState<string | null>(null);
     const fontPreviewRef = useRef<any>(null);
@@ -42,6 +52,16 @@ const AnalysisColumn: React.FC<AnalysisColumnProps> = ({ analysisResult, onAnaly
     const [isGeneratingSentence, setIsGeneratingSentence] = useState<boolean>(false);
 
     const [previewColors, setPreviewColors] = useState({ background: '#1A3431', text: '#EDF7F6' });
+
+    // Effect to handle when preSelectedGoogleFont changes
+    React.useEffect(() => {
+        if (preSelectedGoogleFont && preSelectedGoogleFont !== googleFont) {
+            setMode('google');
+            setGoogleFont(preSelectedGoogleFont);
+            onAnalysisComplete(null); // Clear any existing analysis
+            onPreSelectedFontUsed?.(); // Signal that we've consumed the queued font
+        }
+    }, [preSelectedGoogleFont, googleFont, onAnalysisComplete, onPreSelectedFontUsed]);
 
     const handleColorChange = (type: 'bg' | 'text', value: string) => {
         setPreviewColors(prev => ({ ...prev, [type === 'bg' ? 'background' : 'text']: value }));

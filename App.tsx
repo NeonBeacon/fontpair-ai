@@ -58,6 +58,10 @@ const App: React.FC = () => {
   // Quick Analysis State
   const [quickAnalysisFont, setQuickAnalysisFont] = useState<string | null>(null);
 
+  // Queued Fonts State
+  const [leftQueuedFont, setLeftQueuedFont] = useState<string | null>(null);
+  const [rightQueuedFont, setRightQueuedFont] = useState<string | null>(null);
+
   // Find Fonts state persistence
   const [findFontsState, setFindFontsState] = useState<{
     description: string;
@@ -86,6 +90,10 @@ const App: React.FC = () => {
     setShowUpgradePrompt(true);
     return false;
   };
+
+  // Clear queued font after it's been used
+  const handleLeftQueuedFontUsed = () => setLeftQueuedFont(null);
+  const handleRightQueuedFontUsed = () => setRightQueuedFont(null);
 
   // Keyboard Shortcuts Hook
   useKeyboardShortcuts({
@@ -291,58 +299,30 @@ const App: React.FC = () => {
       if (leftQueue) {
         try {
           const { fontName } = JSON.parse(leftQueue);
-          showToast(`Loading ${fontName} into Left slot...`, 'info');
-          
-          const link = document.createElement('link');
-          link.href = `https://fonts.googleapis.com/css2?family=${fontName.replace(/ /g, '+')}:wght@400;700&display=swap`;
-          link.rel = 'stylesheet';
-          document.head.appendChild(link);
-          
-          await new Promise(r => setTimeout(r, 500));
-
-          const imageBase64 = generateFontImage(fontName, 'Abc');
-          const strippedBase64 = stripBase64Prefix(imageBase64); // Strip prefix here
-          const analysis = await analyzeFont(strippedBase64, 'image/png', fontName);
-          
-          setLeftAnalysis(analysis);
-          setLeftPreviewImage(imageBase64); // Keep full base64 for local preview
+          setLeftQueuedFont(fontName);
           localStorage.removeItem('fontPair_leftQueue');
-          showToast(`${fontName} loaded into Left slot`, 'info');
+          showToast(`${fontName} ready in Left column`, 'info');
         } catch (e) {
-          console.error("Failed to load queued left font", e);
-          showToast("Failed to load left font", 'error');
+          console.error("Failed to parse left queue", e);
+          localStorage.removeItem('fontPair_leftQueue');
         }
       }
       
       if (rightQueue) {
         try {
           const { fontName } = JSON.parse(rightQueue);
-          showToast(`Loading ${fontName} into Right slot...`, 'info');
-          
-          const link = document.createElement('link');
-          link.href = `https://fonts.googleapis.com/css2?family=${fontName.replace(/ /g, '+')}:wght@400;700&display=swap`;
-          link.rel = 'stylesheet';
-          document.head.appendChild(link);
-          
-          await new Promise(r => setTimeout(r, 500));
-
-          const imageBase64 = generateFontImage(fontName, 'Abc');
-          const strippedBase64 = stripBase64Prefix(imageBase64); // Strip prefix here
-          const analysis = await analyzeFont(strippedBase64, 'image/png', fontName);
-          
-          setRightAnalysis(analysis);
-          setRightPreviewImage(imageBase64); // Keep full base64 for local preview
+          setRightQueuedFont(fontName);
           localStorage.removeItem('fontPair_rightQueue');
-          showToast(`${fontName} loaded into Right slot`, 'info');
+          showToast(`${fontName} ready in Right column`, 'info');
         } catch (e) {
-          console.error("Failed to load queued right font", e);
-          showToast("Failed to load right font", 'error');
+          console.error("Failed to parse right queue", e);
+          localStorage.removeItem('fontPair_rightQueue');
         }
       }
     };
     
     processQueue();
-  }, [viewMode, showToast, generateFontImage, analyzeFont, setLeftAnalysis, setLeftPreviewImage, setRightAnalysis, setRightPreviewImage]); // Added dependencies to useEffect
+  }, [viewMode]); // Removed unused dependencies
 
   const handleToggleAIMode = async () => {
     const newMode: AIMode = aiMode === 'chrome' ? 'cloud' : 'chrome';
@@ -705,7 +685,15 @@ const App: React.FC = () => {
                     <div className="text-center mb-3">
                       <span className="text-xs uppercase tracking-widest text-teal-light font-semibold">Display / Header Font</span>
                     </div>
-                    <AnalysisColumn key="left" analysisResult={leftAnalysis} onAnalysisComplete={setLeftAnalysis} onPreviewCaptured={setLeftPreviewImage} savedPreviewImage={leftPreviewImage} />
+                    <AnalysisColumn 
+                        key="left" 
+                        analysisResult={leftAnalysis} 
+                        onAnalysisComplete={setLeftAnalysis} 
+                        onPreviewCaptured={setLeftPreviewImage} 
+                        savedPreviewImage={leftPreviewImage}
+                        preSelectedGoogleFont={leftQueuedFont || undefined}
+                        onPreSelectedFontUsed={handleLeftQueuedFontUsed}
+                    />
                   </div>
 
                   {/* Swap Button - Mobile (between stacked columns) */}
@@ -744,7 +732,15 @@ const App: React.FC = () => {
                     <div className="text-center mb-3">
                       <span className="text-xs uppercase tracking-widest text-teal-light font-semibold">Body / Paragraph Font</span>
                     </div>
-                    <AnalysisColumn key="right" analysisResult={rightAnalysis} onAnalysisComplete={setRightAnalysis} onPreviewCaptured={setRightPreviewImage} savedPreviewImage={rightPreviewImage} />
+                    <AnalysisColumn 
+                        key="right" 
+                        analysisResult={rightAnalysis} 
+                        onAnalysisComplete={setRightAnalysis} 
+                        onPreviewCaptured={setRightPreviewImage} 
+                        savedPreviewImage={rightPreviewImage}
+                        preSelectedGoogleFont={rightQueuedFont || undefined}
+                        onPreSelectedFontUsed={handleRightQueuedFontUsed}
+                    />
                   </div>
               </div>
             </div>
