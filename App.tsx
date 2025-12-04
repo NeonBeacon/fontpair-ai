@@ -270,6 +270,14 @@ const App: React.FC = () => {
     }
   }, [isLicenseValid]);
 
+  // Toast notification state
+  const [toast, setToast] = useState<{ message: string; type: 'info' | 'warning' | 'error' } | null>(null);
+
+  const showToast = (message: string, type: 'info' | 'warning' | 'error' = 'info') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 4000);
+  };
+
   // Process queued fonts from Find Fonts
   useEffect(() => {
     const processQueue = async () => {
@@ -335,14 +343,6 @@ const App: React.FC = () => {
     
     processQueue();
   }, [viewMode, showToast, generateFontImage, analyzeFont, setLeftAnalysis, setLeftPreviewImage, setRightAnalysis, setRightPreviewImage]); // Added dependencies to useEffect
-
-  // Toast notification state
-  const [toast, setToast] = useState<{ message: string; type: 'info' | 'warning' | 'error' } | null>(null);
-
-  const showToast = (message: string, type: 'info' | 'warning' | 'error' = 'info') => {
-    setToast({ message, type });
-    setTimeout(() => setToast(null), 4000);
-  };
 
   const handleToggleAIMode = async () => {
     const newMode: AIMode = aiMode === 'chrome' ? 'cloud' : 'chrome';
@@ -841,8 +841,8 @@ const App: React.FC = () => {
         onClose={() => setShowShortcuts(false)}
       />
 
-      {/* Toast Notification */}
-      {toast && (
+      {/* Toast Notification (Temporarily commented out for debugging) */}
+      {/* {toast && (
         <div className={`fixed bottom-6 left-1/2 transform -translate-x-1/2 z-50 px-6 py-3 rounded-lg shadow-lg animate-fade-in-up ${
           toast.type === 'error' ? 'bg-red-500 text-white' :
           toast.type === 'warning' ? 'bg-yellow-500 text-black' :
@@ -850,7 +850,7 @@ const App: React.FC = () => {
         }`}>
           <p className="text-sm font-medium">{toast.message}</p>
         </div>
-      )}
+      )} */}
 
       <footer className="w-full p-4 text-center text-secondary/70 text-sm border-t border-border">
         Powered by Google Gemini
