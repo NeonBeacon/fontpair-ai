@@ -35,3 +35,10 @@ export const generateFontImage = (fontName: string, text: string = 'Abc'): strin
 
   return canvas.toDataURL('image/png');
 };
+
+export const stripBase64Prefix = (base64String: string): string => {
+  if (base64String.includes(',')) {
+    return base64String.split(',')[1];
+  }
+  return base64String;
+};

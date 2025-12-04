@@ -20,7 +20,7 @@ import UpgradePrompt from './components/UpgradePrompt';
 import QuickAnalysisModal from './components/QuickAnalysisModal';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { getAIMode, setAIMode, getAPIKey, validateAIMode, isChromeAIAvailable } from './utils/aiSettings';
-import { generateFontImage } from './utils/fontUtils';
+import { generateFontImage, stripBase64Prefix } from './utils/fontUtils';
 import { checkActivationStatus } from './services/licenseService';
 import { getSession, supabase } from './services/authService';
 import { getHistory } from './historyService';
@@ -293,10 +293,11 @@ const App: React.FC = () => {
           await new Promise(r => setTimeout(r, 500));
 
           const imageBase64 = generateFontImage(fontName, 'Abc');
-          const analysis = await analyzeFont(imageBase64, 'image/png', fontName);
+          const strippedBase64 = stripBase64Prefix(imageBase64); // Strip prefix here
+          const analysis = await analyzeFont(strippedBase64, 'image/png', fontName);
           
           setLeftAnalysis(analysis);
-          setLeftPreviewImage(imageBase64);
+          setLeftPreviewImage(imageBase64); // Keep full base64 for local preview
           localStorage.removeItem('fontPair_leftQueue');
           showToast(`${fontName} loaded into Left slot`, 'info');
         } catch (e) {
@@ -318,10 +319,11 @@ const App: React.FC = () => {
           await new Promise(r => setTimeout(r, 500));
 
           const imageBase64 = generateFontImage(fontName, 'Abc');
-          const analysis = await analyzeFont(imageBase64, 'image/png', fontName);
+          const strippedBase64 = stripBase64Prefix(imageBase64); // Strip prefix here
+          const analysis = await analyzeFont(strippedBase64, 'image/png', fontName);
           
           setRightAnalysis(analysis);
-          setRightPreviewImage(imageBase64);
+          setRightPreviewImage(imageBase64); // Keep full base64 for local preview
           localStorage.removeItem('fontPair_rightQueue');
           showToast(`${fontName} loaded into Right slot`, 'info');
         } catch (e) {
@@ -332,7 +334,7 @@ const App: React.FC = () => {
     };
     
     processQueue();
-  }, [viewMode]);
+  }, [viewMode, showToast, generateFontImage, analyzeFont, setLeftAnalysis, setLeftPreviewImage, setRightAnalysis, setRightPreviewImage]); // Added dependencies to useEffect
 
   // Toast notification state
   const [toast, setToast] = useState<{ message: string; type: 'info' | 'warning' | 'error' } | null>(null);
