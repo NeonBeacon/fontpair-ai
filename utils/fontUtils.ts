@@ -42,3 +42,20 @@ export const stripBase64Prefix = (base64String: string): string => {
   }
   return base64String;
 };
+
+
+/**
+ * Read a name-table entry (copyright, license, designer, ...) from an opentype.js font.
+ * Depending on the opentype.js version and the font, names live at font.names[key]
+ * or are grouped by platform under font.names.windows / macintosh / unicode.
+ */
+export const getFontName = (font: any, key: string): string | undefined => {
+  const names = font?.names;
+  if (!names) return undefined;
+  const candidates = [names[key], names.windows?.[key], names.macintosh?.[key], names.unicode?.[key]];
+  for (const entry of candidates) {
+    const value = entry?.en;
+    if (typeof value === 'string' && value.trim()) return value.trim();
+  }
+  return undefined;
+};

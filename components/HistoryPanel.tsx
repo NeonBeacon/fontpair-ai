@@ -96,17 +96,18 @@ const HistoryPanel: React.FC<HistoryPanelProps> = ({ isOpen, onClose, onLoadAnal
       onClick={onClose}
     >
       <div
-        className="paper-modal rounded-lg w-full max-w-3xl max-h-[80vh] shadow-2xl flex flex-col"
+        className="paper-modal rounded-lg w-full max-w-3xl max-h-[80dvh] shadow-2xl flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-border">
-          <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3 p-4 sm:p-6 border-b border-border">
+          <div className="flex items-center gap-3 order-1">
             <HistoryIcon className="w-6 h-6 text-accent" />
             <h2 className="text-2xl font-bold text-text-light">History</h2>
           </div>
 
-          <div className="flex items-center gap-4">
+          {/* On a phone the controls drop to their own row so the close button stays in view */}
+          <div className="flex flex-wrap items-center gap-3 sm:gap-4 order-3 sm:order-2 w-full sm:w-auto">
             {/* Tab Selector */}
             <div className="flex bg-teal-dark rounded-lg p-1 border border-teal-light/10">
               <button
@@ -150,15 +151,15 @@ const HistoryPanel: React.FC<HistoryPanelProps> = ({ isOpen, onClose, onLoadAnal
                 </button>
               </div>
             )}
-
-            <button
-              onClick={onClose}
-              className="text-secondary hover:text-primary transition-colors"
-              aria-label="Close"
-            >
-              <CloseIcon className="w-6 h-6" />
-            </button>
           </div>
+
+          <button
+            onClick={onClose}
+            className="text-secondary hover:text-primary transition-colors order-2 sm:order-3"
+            aria-label="Close"
+          >
+            <CloseIcon className="w-6 h-6" />
+          </button>
         </div>
 
         {/* Content */}

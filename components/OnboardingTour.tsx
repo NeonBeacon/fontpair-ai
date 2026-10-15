@@ -17,6 +17,14 @@ const ONBOARDING_STEPS: OnboardingStep[] = [
     actionText: 'Let\'s Go!'
   },
   {
+    id: 'connect-ai',
+    targetSelector: '[data-tour="settings-button"]',
+    title: 'Connect your AI',
+    message: 'FontPair AI uses your own free Google Gemini key. Get one at aistudio.google.com/app/apikey, then paste it in Settings (gear icon, top right).',
+    placement: 'bottom',
+    actionText: 'Next'
+  },
+  {
     id: 'analyze',
     targetSelector: '[data-tour="analysis-column"]',
     title: 'Analyze Any Font',

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import type { FontAnalysis, FontDNAResult, FontDNAMatch } from '../types';
 import { findSimilarFonts } from '../services/geminiService';
@@ -30,30 +30,49 @@ const FontDNAModal: React.FC<FontDNAModalProps> = ({ isOpen, onClose, referenceF
         setLoadedGoogleFonts(prev => new Set(prev).add(fontName));
     };
 
-    useEffect(() => {
-        if (isOpen && !result && !isLoading) {
-            setIsLoading(true);
-            setError(null);
+    // Which font we have already fired a request for during this open. A failed
+    // request must never re-trigger itself (that burned a whole daily quota), so
+    // the request is keyed on this ref instead of on result/isLoading state.
+    const requestedFontRef = useRef<FontAnalysis | null>(null);
+    // Which font the current `result` belongs to, so reopening doesn't re-spend quota
+    const resultFontRef = useRef<FontAnalysis | null>(null);
 
-            findSimilarFonts(referenceFont)
-                .then(dnaResult => {
-                    setResult(dnaResult);
-                    // Load Google Fonts for preview
-                    dnaResult.matches.forEach(match => {
-                        if (match.source.toLowerCase().includes('google')) {
-                            loadGoogleFont(match.fontName);
-                        }
-                    });
-                })
-                .catch(err => {
-                    console.error('Font DNA matching error:', err);
-                    setError(err.message || 'Failed to find similar fonts');
-                })
-                .finally(() => {
-                    setIsLoading(false);
+    const fetchMatches = () => {
+        setIsLoading(true);
+        setError(null);
+        setResult(null);
+        const forFont = referenceFont;
+
+        findSimilarFonts(forFont)
+            .then(dnaResult => {
+                resultFontRef.current = forFont;
+                setResult(dnaResult);
+                // Load Google Fonts for preview
+                dnaResult.matches.forEach(match => {
+                    if (match.source.toLowerCase().includes('google')) {
+                        loadGoogleFont(match.fontName);
+                    }
                 });
+            })
+            .catch(err => {
+                console.error('Font DNA matching error:', err);
+                setError(err.message || 'Failed to find similar fonts');
+            })
+            .finally(() => {
+                setIsLoading(false);
+            });
+    };
+
+    useEffect(() => {
+        if (!isOpen) {
+            requestedFontRef.current = null; // reset on close
+            return;
         }
-    }, [isOpen, referenceFont, result, isLoading]);
+        if (requestedFontRef.current === referenceFont) return;
+        requestedFontRef.current = referenceFont;
+        if (result && resultFontRef.current === referenceFont) return; // already have it
+        fetchMatches();
+    }, [isOpen, referenceFont]);
 
     const handleCopyFontName = (fontName: string, index: number) => {
         navigator.clipboard.writeText(fontName).then(() => {
@@ -76,7 +95,7 @@ const FontDNAModal: React.FC<FontDNAModalProps> = ({ isOpen, onClose, referenceF
             onClick={onClose}
         >
             <div
-                className="bg-surface rounded-lg w-full max-w-4xl max-h-[85vh] overflow-hidden border border-border shadow-2xl flex flex-col my-4"
+                className="bg-surface rounded-lg w-full max-w-4xl max-h-[85dvh] overflow-hidden border border-border shadow-2xl flex flex-col my-4"
                 onClick={e => e.stopPropagation()}
             >
                 {/* Header */}
@@ -113,10 +132,7 @@ const FontDNAModal: React.FC<FontDNAModalProps> = ({ isOpen, onClose, referenceF
                         <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4 text-center">
                             <p className="text-red-300">{error}</p>
                             <button
-                                onClick={() => {
-                                    setError(null);
-                                    setResult(null);
-                                }}
+                                onClick={fetchMatches}
                                 className="mt-3 px-4 py-2 bg-accent text-surface font-semibold rounded-lg hover:opacity-90 transition-opacity"
                             >
                                 Try Again

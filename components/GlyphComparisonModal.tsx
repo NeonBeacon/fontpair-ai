@@ -33,7 +33,7 @@ const GlyphComparisonModal: React.FC<GlyphComparisonModalProps> = ({
       onClick={onClose}
     >
       <div
-        className="paper-modal w-full max-w-5xl max-h-[90vh] shadow-2xl flex flex-col"
+        className="paper-modal w-full max-w-5xl max-h-[90dvh] shadow-2xl flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}

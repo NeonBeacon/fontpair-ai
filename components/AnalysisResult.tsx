@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import type { FontAnalysis } from '../types';
-import { CheckIcon, InfoIcon, BusinessIcon, UsageIcon, WeightIcon, LicenseIcon, PairingIcon, AccessibilityIcon, SimilarFontsIcon, VariableFontIcon, ShareIcon, ExportIcon, CopyIcon, ExternalLinkIcon, HistoryIcon } from './Icons';
+import { CheckIcon, InfoIcon, BusinessIcon, UsageIcon, WeightIcon, LicenseIcon, PairingIcon, AccessibilityIcon, SimilarFontsIcon, VariableFontIcon, ShareIcon, ExportIcon, CopyIcon, ExternalLinkIcon, HistoryIcon, CloseIcon } from './Icons';
 import { exportAnalysisToPDF } from '../pdfExportService';
+import { encodeShareData } from '../utils/fileUtils';
 import FontSourceBadge from './FontSourceBadge';
 import FontDNAModal from './FontDNAModal';
 import TypographyContextModal from './TypographyContextModal';
@@ -34,6 +35,7 @@ const AnalysisResult: React.FC<AnalysisResultProps> = ({ result, onReset, isShar
     const [loadedGoogleFonts, setLoadedGoogleFonts] = useState<Set<string>>(new Set());
     const [isExportingPDF, setIsExportingPDF] = useState(false);
     const [pdfError, setPdfError] = useState<string | null>(null);
+    const [shareError, setShareError] = useState<string | null>(null);
     const [showFontDNAModal, setShowFontDNAModal] = useState(false);
     const [showContextModal, setShowContextModal] = useState(false);
 
@@ -58,11 +60,30 @@ const AnalysisResult: React.FC<AnalysisResultProps> = ({ result, onReset, isShar
         });
     }, [result.fontPairings, result.similarFonts]);
     
+    // Esc closes the Share and Design Tokens dialogs
+    useEffect(() => {
+        if (!shareUrl && !showExportModal) return;
+        const handleEscape = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') {
+                setShareUrl('');
+                setShowExportModal(false);
+            }
+        };
+        window.addEventListener('keydown', handleEscape);
+        return () => window.removeEventListener('keydown', handleEscape);
+    }, [shareUrl, showExportModal]);
+
     const handleShare = () => {
-        const jsonString = JSON.stringify(result);
-        const encodedData = btoa(jsonString);
-        const url = `${window.location.origin}${window.location.pathname}#${encodedData}`;
-        setShareUrl(url);
+        setShareError(null);
+        try {
+            const encodedData = encodeShareData(result);
+            const url = `${window.location.origin}${window.location.pathname}#${encodedData}`;
+            setShareUrl(url);
+        } catch (error) {
+            console.error('Failed to create share link:', error);
+            setShareError("Couldn't create a share link for this analysis. Please try again.");
+            setTimeout(() => setShareError(null), 5000);
+        }
     };
 
     const handleCopyToClipboard = (textToCopy: string) => {
@@ -155,22 +176,27 @@ const AnalysisResult: React.FC<AnalysisResultProps> = ({ result, onReset, isShar
                             <ExportIcon className="w-4 h-4" />
                             {isExportingPDF ? 'Exporting...' : 'Export PDF'}
                         </button>
-                        <button
-                            onClick={() => setShowFontDNAModal(true)}
-                            className="px-4 py-2 text-sm bg-accent/80 text-surface font-bold rounded-lg hover:bg-accent transition-colors flex items-center gap-2"
-                            title="Find fonts with similar visual DNA"
-                        >
-                            <SimilarFontsIcon className="w-4 h-4" />
-                            Find Similar
-                        </button>
-                        <button
-                            onClick={() => setShowContextModal(true)}
-                            className="px-4 py-2 text-sm bg-teal-medium text-text-light font-bold rounded-lg hover:bg-teal-dark transition-colors flex items-center gap-2"
-                            title="View typography trends and historical context"
-                        >
-                            <HistoryIcon className="w-4 h-4" />
-                            See Context
-                        </button>
+                        {/* AI-powered actions are hidden in a shared (read-only) view */}
+                        {!isSharedView && (
+                            <>
+                                <button
+                                    onClick={() => setShowFontDNAModal(true)}
+                                    className="px-4 py-2 text-sm bg-accent/80 text-surface font-bold rounded-lg hover:bg-accent transition-colors flex items-center gap-2"
+                                    title="Find fonts with similar visual DNA"
+                                >
+                                    <SimilarFontsIcon className="w-4 h-4" />
+                                    Find Similar
+                                </button>
+                                <button
+                                    onClick={() => setShowContextModal(true)}
+                                    className="px-4 py-2 text-sm bg-teal-medium text-text-light font-bold rounded-lg hover:bg-teal-dark transition-colors flex items-center gap-2"
+                                    title="View typography trends and historical context"
+                                >
+                                    <HistoryIcon className="w-4 h-4" />
+                                    See Context
+                                </button>
+                            </>
+                        )}
                         <button onClick={() => setShowExportModal(true)} className="px-4 py-2 text-sm bg-secondary/30 text-primary font-semibold rounded-lg hover:bg-secondary/50 transition-colors flex items-center gap-2"><ExportIcon className="w-4 h-4" />Design Tokens</button>
                         <button onClick={handleShare} className="px-4 py-2 text-sm bg-secondary/30 text-primary font-semibold rounded-lg hover:bg-secondary/50 transition-colors flex items-center gap-2"><ShareIcon className="w-4 h-4" />Share</button>
                         {!isSharedView && <button onClick={onReset} className="px-6 py-2 bg-secondary/50 text-primary font-semibold rounded-lg hover:bg-secondary/70 transition-colors">Analyze Another</button>}
@@ -178,6 +204,11 @@ const AnalysisResult: React.FC<AnalysisResultProps> = ({ result, onReset, isShar
                     {pdfError && (
                         <div className="bg-red-500/10 border border-red-500/20 rounded-md p-3">
                             <p className="text-sm text-red-300">{pdfError}</p>
+                        </div>
+                    )}
+                    {shareError && (
+                        <div role="alert" className="bg-red-500/10 border border-red-500/20 rounded-md p-3">
+                            <p className="text-sm text-red-300">{shareError}</p>
                         </div>
                     )}
                 </div>
@@ -305,7 +336,12 @@ const AnalysisResult: React.FC<AnalysisResultProps> = ({ result, onReset, isShar
             {shareUrl && createPortal(
                  <div className="fixed inset-0 bg-black/60 flex items-start justify-center z-[9999] animate-fade-in p-4 pt-8 overflow-y-auto" onClick={() => setShareUrl('')}>
                     <div className="bg-surface rounded-lg p-6 w-full max-w-lg border border-border shadow-2xl my-4" onClick={e => e.stopPropagation()}>
-                        <h3 className="text-xl font-bold mb-4 text-primary">Share Analysis</h3>
+                        <div className="flex items-start justify-between mb-4">
+                            <h3 className="text-xl font-bold text-primary">Share Analysis</h3>
+                            <button onClick={() => setShareUrl('')} className="text-secondary hover:text-primary transition-colors -mt-1 -mr-1 p-1" aria-label="Close share dialog">
+                                <CloseIcon className="w-6 h-6" />
+                            </button>
+                        </div>
                         <p className="text-secondary mb-4 text-sm">Copy this link to share a read-only version of this report.</p>
                         <div className="flex items-center gap-2">
                            <input type="text" readOnly value={shareUrl} className="w-full bg-background border border-border rounded-md p-2 text-text-dark text-sm truncate"/>
@@ -320,7 +356,12 @@ const AnalysisResult: React.FC<AnalysisResultProps> = ({ result, onReset, isShar
              {showExportModal && createPortal(
                  <div className="fixed inset-0 bg-black/60 flex items-start justify-center z-[9999] animate-fade-in p-4 pt-8 overflow-y-auto" onClick={() => setShowExportModal(false)}>
                     <div className="bg-surface rounded-lg p-6 w-full max-w-lg border border-border shadow-2xl my-4" onClick={e => e.stopPropagation()}>
-                        <h3 className="text-xl font-bold mb-4 text-primary">Export Design Tokens</h3>
+                        <div className="flex items-start justify-between mb-4">
+                            <h3 className="text-xl font-bold text-primary">Export Design Tokens</h3>
+                            <button onClick={() => setShowExportModal(false)} className="text-secondary hover:text-primary transition-colors -mt-1 -mr-1 p-1" aria-label="Close design tokens dialog">
+                                <CloseIcon className="w-6 h-6" />
+                            </button>
+                        </div>
                         <div className="flex gap-2 mb-4 border border-border bg-background/50 p-1 rounded-lg">
                             <button onClick={() => setExportFormat('css')} className={`w-full rounded-md py-1 text-sm font-semibold ${exportFormat === 'css' ? 'bg-accent text-surface' : 'text-secondary hover:bg-border'}`}>CSS</button>
                             <button onClick={() => setExportFormat('json')} className={`w-full rounded-md py-1 text-sm font-semibold ${exportFormat === 'json' ? 'bg-accent text-surface' : 'text-secondary hover:bg-border'}`}>JSON</button>

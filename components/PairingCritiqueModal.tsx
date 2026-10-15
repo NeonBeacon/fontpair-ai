@@ -19,7 +19,7 @@ const PairingCritiqueModal: React.FC<PairingCritiqueModalProps> = ({ critique, o
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 animate-fade-in p-4" onClick={onClose}>
       <div 
-        className="bg-surface rounded-lg p-6 w-full max-w-2xl border border-border shadow-2xl relative max-h-[90vh] overflow-y-auto" 
+        className="bg-surface rounded-lg p-6 w-full max-w-2xl border border-border shadow-2xl relative max-h-[90dvh] overflow-y-auto" 
         onClick={e => e.stopPropagation()}
       >
         <button onClick={onClose} className="absolute top-4 right-4 text-teal-light hover:text-text-light transition-colors" aria-label="Close critique">

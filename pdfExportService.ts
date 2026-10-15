@@ -672,7 +672,8 @@ export async function exportAnalysisToPDF(analysis: FontAnalysis, previewImageBa
       // @ts-ignore - context2d property exists on internal but typescript definitions might miss it for some versions
       if (doc.context2d) {
           doc.saveGraphicsState();
-          doc.setGState(new doc.GState({ opacity: 0.15 })); // Set opacity if possible
+          // GState is a constructor on the jsPDF instance, but its typings declare it as a plain function
+          doc.setGState(new (doc as any).GState({ opacity: 0.15 })); // Set opacity if possible
       }
 
       doc.text(text, x, y, { align: 'center', angle: 45 });

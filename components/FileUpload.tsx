@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useId, useState } from 'react';
 import { UploadIcon } from './Icons';
 
 interface FileUploadProps {
@@ -10,6 +10,9 @@ const acceptedTypes = ".png, .jpg, .jpeg, .webp, .ttf, .otf, .woff, .woff2";
 
 const FileUpload: React.FC<FileUploadProps> = ({ onFileSelect, file }) => {
   const [isDragging, setIsDragging] = useState(false);
+  // Unique per instance: both columns render a FileUpload, so a fixed id made the
+  // right column's label open the left column's input.
+  const inputId = useId();
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   const handleDragEnter = (e: React.DragEvent<HTMLLabelElement>) => {
@@ -57,7 +60,7 @@ const FileUpload: React.FC<FileUploadProps> = ({ onFileSelect, file }) => {
   return (
     <div className="w-full">
       <label
-        htmlFor="file-upload"
+        htmlFor={inputId}
         tabIndex={0}
         className={`relative flex flex-col items-center justify-center w-full min-h-40 p-4 rounded-lg cursor-pointer transition-all duration-300 paper-upload-box ${isDragging ? 'border-accent' : ''} focus:outline-none focus-visible:ring-2 focus-visible:ring-accent`}
         onDragEnter={handleDragEnter}
@@ -73,7 +76,7 @@ const FileUpload: React.FC<FileUploadProps> = ({ onFileSelect, file }) => {
             </p>
             <p className="text-xs text-text-secondary">Font files or images (PNG, JPG)</p>
         </div>
-        <input ref={fileInputRef} id="file-upload" type="file" className="hidden" accept={acceptedTypes} onChange={handleFileChange} />
+        <input ref={fileInputRef} id={inputId} type="file" className="hidden" accept={acceptedTypes} onChange={handleFileChange} />
         {file && (
              <div className="absolute bottom-2 left-2 right-2 bg-teal-dark/90 backdrop-blur-sm p-2 rounded-md text-center text-xs text-accent truncate border border-teal-medium">
                 {file.name}

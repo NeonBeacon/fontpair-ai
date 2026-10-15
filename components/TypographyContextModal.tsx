@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import type { FontAnalysis, TypographyContextResult } from '../types';
 import { getTypographyContext } from '../services/geminiService';
@@ -19,22 +19,43 @@ const TypographyContextModal: React.FC<TypographyContextModalProps> = ({
     const [error, setError] = useState<string | null>(null);
     const [result, setResult] = useState<TypographyContextResult | null>(null);
 
-    useEffect(() => {
-        if (isOpen && !result && !isLoading) {
-            setIsLoading(true);
-            setError(null);
+    // Which font we have already fired a request for during this open. A failed
+    // request must never re-trigger itself (that burned a whole daily quota), so
+    // the request is keyed on this ref instead of on result/isLoading state.
+    const requestedFontRef = useRef<FontAnalysis | null>(null);
+    // Which font the current `result` belongs to, so reopening doesn't re-spend quota
+    const resultFontRef = useRef<FontAnalysis | null>(null);
 
-            getTypographyContext(fontAnalysis)
-                .then(setResult)
-                .catch(err => {
-                    console.error('Typography context error:', err);
-                    setError(err.message || 'Failed to get typography context');
-                })
-                .finally(() => {
-                    setIsLoading(false);
-                });
+    const fetchContext = () => {
+        setIsLoading(true);
+        setError(null);
+        setResult(null);
+        const forFont = fontAnalysis;
+
+        getTypographyContext(forFont)
+            .then(contextResult => {
+                resultFontRef.current = forFont;
+                setResult(contextResult);
+            })
+            .catch(err => {
+                console.error('Typography context error:', err);
+                setError(err.message || 'Failed to get typography context');
+            })
+            .finally(() => {
+                setIsLoading(false);
+            });
+    };
+
+    useEffect(() => {
+        if (!isOpen) {
+            requestedFontRef.current = null; // reset on close
+            return;
         }
-    }, [isOpen, fontAnalysis, result, isLoading]);
+        if (requestedFontRef.current === fontAnalysis) return;
+        requestedFontRef.current = fontAnalysis;
+        if (result && resultFontRef.current === fontAnalysis) return; // already have it
+        fetchContext();
+    }, [isOpen, fontAnalysis]);
 
     if (!isOpen) return null;
 
@@ -44,7 +65,7 @@ const TypographyContextModal: React.FC<TypographyContextModalProps> = ({
             onClick={onClose}
         >
             <div
-                className="bg-surface rounded-lg w-full max-w-4xl max-h-[85vh] overflow-hidden border border-border shadow-2xl flex flex-col my-4"
+                className="bg-surface rounded-lg w-full max-w-4xl max-h-[85dvh] overflow-hidden border border-border shadow-2xl flex flex-col my-4"
                 onClick={e => e.stopPropagation()}
             >
                 {/* Header */}
@@ -87,10 +108,7 @@ const TypographyContextModal: React.FC<TypographyContextModalProps> = ({
                         <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4 text-center">
                             <p className="text-red-300">{error}</p>
                             <button
-                                onClick={() => {
-                                    setError(null);
-                                    setResult(null);
-                                }}
+                                onClick={fetchContext}
                                 className="mt-3 px-4 py-2 bg-accent text-surface font-semibold rounded-lg hover:opacity-90 transition-opacity"
                             >
                                 Try Again

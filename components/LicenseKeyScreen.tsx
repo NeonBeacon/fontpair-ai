@@ -219,7 +219,7 @@ const LicenseKeyScreen: React.FC<LicenseKeyScreenProps> = ({ onLicenseValidated 
                                     type="text"
                                     value={licenseKey}
                                     onChange={(e) => setLicenseKey(e.target.value.toUpperCase())}
-                                    placeholder="XXXX-XXXX-XXXX-XXXX"
+                                    placeholder="CADMUS-XXXX-XXXX-XXXX-XXXX"
                                     className="w-full px-4 py-3 bg-black/20 border border-teal-medium rounded-md text-[#F2EFE8] placeholder-teal-light/30 focus:outline-none focus:ring-2 focus:ring-accent font-mono text-lg tracking-widest text-center uppercase"
                                     disabled={isValidating || (validationResult?.valid ?? false)}
                                 />
@@ -249,8 +249,12 @@ const LicenseKeyScreen: React.FC<LicenseKeyScreenProps> = ({ onLicenseValidated 
                     </div>
 
                 </div>
-                
-                <div className="mt-8 text-center text-xs text-secondary/60 max-w-lg mx-auto">
+
+                <p className="mt-6 text-center text-sm text-secondary">
+                    You'll also need a free Google Gemini key (about 2 minutes). We'll walk you through it after you sign in.
+                </p>
+
+                <div className="mt-4 text-center text-xs text-secondary/60 max-w-lg mx-auto">
                     By continuing, you agree to our Terms of Service and <a href="/privacy.html" target="_blank" className="underline hover:text-secondary">Privacy Policy</a>.
                 </div>
             </div>

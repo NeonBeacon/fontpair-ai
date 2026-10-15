@@ -3,8 +3,12 @@ import type { FontAnalysis, PairingCritique, GlyphComparisonResult, AIMode, Font
 import { getAIMode, getAPIKey, validateAIMode } from '../utils/aiSettings';
 import { FULL_CONSTITUTION } from '../data/typographyConstitution';
 
+// One place to change the model for every feature
+export const GEMINI_MODEL = 'gemini-2.5-flash';
+
 // Initialize Cloud AI lazily when needed
 let cloudAI: GoogleGenAI | null = null;
+let cloudAIKey = '';
 
 const getCloudAI = (): GoogleGenAI => {
     const apiKey = getAPIKey();
@@ -12,8 +16,9 @@ const getCloudAI = (): GoogleGenAI => {
         throw new Error("No Gemini API key configured. Please add your API key in settings.");
     }
 
-    if (!cloudAI || cloudAI.apiKey !== apiKey) {
+    if (!cloudAI || cloudAIKey !== apiKey) {
         cloudAI = new GoogleGenAI({ apiKey });
+        cloudAIKey = apiKey;
     }
 
     return cloudAI;
@@ -22,29 +27,59 @@ const getCloudAI = (): GoogleGenAI => {
 /**
  * Parse API errors and return user-friendly messages
  * Distinguishes between AI provider issues and app issues
+ *
+ * Order matters: a bad key arrives as a 400 INVALID_ARGUMENT, and a daily quota
+ * arrives as the same 429 as a per-minute limit, so the specific checks go first.
  */
 const parseAPIError = (error: unknown): string => {
     const errorString = error instanceof Error ? error.message : String(error);
+    const lower = errorString.toLowerCase();
 
-    // Check for specific API error codes/messages
+    // 1. Key invalid or expired
+    if (
+        errorString.includes('API_KEY_INVALID') ||
+        lower.includes('api key not valid') ||
+        lower.includes('api key expired') ||
+        (errorString.includes('PERMISSION_DENIED') && lower.includes('api key'))
+    ) {
+        return "Your Gemini API key isn't working. Open Settings (gear icon, top right) and paste a valid key from aistudio.google.com/app/apikey.";
+    }
+
+    // 2. Missing key (message thrown by getCloudAI / validateAIMode is already clear)
+    if (lower.includes('no gemini api key') || lower.includes('no api key configured')) {
+        return errorString;
+    }
+    if (errorString.includes('401') || errorString.includes('UNAUTHENTICATED')) {
+        return "Invalid Gemini API key. Please check your API key in Settings and ensure it's correct.";
+    }
+
+    // 3. Daily quota (429 with a per-day limit, or a retry delay of more than an hour)
+    const isQuota = errorString.includes('429') || errorString.includes('RESOURCE_EXHAUSTED');
+    if (isQuota) {
+        const retryMatch = errorString.match(/retryDelay\D{0,6}(\d+(?:\.\d+)?)s/i);
+        const retrySeconds = retryMatch ? parseFloat(retryMatch[1]) : 0;
+        if (
+            errorString.includes('PerDay') ||
+            lower.includes('per day') ||
+            lower.includes('per_day') ||
+            retrySeconds > 3600
+        ) {
+            return "Your Google key has used today's free allowance. It resets at midnight Pacific (8am UK). For more, turn on billing for your project in Google AI Studio.";
+        }
+    }
+
+    // 4. Any other 429 is the per-minute limit
+    if (isQuota || lower.includes('quota')) {
+        return "Gemini API rate limit exceeded. You've made too many requests. Please wait a minute before trying again, or check your API quota at Google AI Studio.";
+    }
+
+    // 5. Google-side and connection problems
     if (errorString.includes('503') || errorString.includes('UNAVAILABLE') || errorString.includes('overloaded')) {
         return "Gemini API is temporarily overloaded. This is an issue with Google's servers, not the app. Please wait a few minutes and try again.";
     }
 
-    if (errorString.includes('429') || errorString.includes('RESOURCE_EXHAUSTED') || errorString.includes('quota')) {
-        return "Gemini API rate limit exceeded. You've made too many requests. Please wait a minute before trying again, or check your API quota at Google AI Studio.";
-    }
-
-    if (errorString.includes('401') || errorString.includes('UNAUTHENTICATED') || errorString.includes('invalid') && errorString.includes('key')) {
-        return "Invalid Gemini API key. Please check your API key in Settings and ensure it's correct.";
-    }
-
     if (errorString.includes('403') || errorString.includes('PERMISSION_DENIED')) {
         return "Gemini API access denied. Your API key may not have permission for this model. Check your API key settings at Google AI Studio.";
-    }
-
-    if (errorString.includes('400') || errorString.includes('INVALID_ARGUMENT')) {
-        return "Invalid request to Gemini API. The image or text may be too large or in an unsupported format.";
     }
 
     if (errorString.includes('network') || errorString.includes('fetch') || errorString.includes('Failed to fetch')) {
@@ -53,6 +88,11 @@ const parseAPIError = (error: unknown): string => {
 
     if (errorString.includes('timeout') || errorString.includes('DEADLINE_EXCEEDED')) {
         return "Gemini API request timed out. The server took too long to respond. Please try again.";
+    }
+
+    // 6. Bad request
+    if (errorString.includes('400') || errorString.includes('INVALID_ARGUMENT')) {
+        return "Invalid request to Gemini API. The image or text may be too large or in an unsupported format.";
     }
 
     // Default message - still indicates it's an AI provider issue
@@ -298,7 +338,7 @@ If you cannot clearly identify the font or there isn't enough text to analyze, y
     try {
         const response = await retryOperation(() =>
             ai.models.generateContent({
-                model: 'gemini-2.5-flash',
+                model: GEMINI_MODEL,
                 contents: contents,
                 config: {
                     responseMimeType: 'application/json',
@@ -498,7 +538,7 @@ CRITICAL OUTPUT RULES:
     try {
         const response = await retryOperation(() =>
             ai.models.generateContent({
-                model: 'gemini-2.5-flash',
+                model: GEMINI_MODEL,
                 contents: prompt,
                 config: {
                     responseMimeType: 'application/json',
@@ -537,66 +577,30 @@ export const critiqueFontPairing = async (font1: FontAnalysis, font2: FontAnalys
 
 
 /**
- * Generate funny sentence using Chrome AI
- * Uses the new window.ai.languageModel API
+ * Preview sentences are picked locally. This used to be an AI call on every
+ * font load, which burned the user's free daily quota for no real value.
  */
-const generateFunnySentence_Chrome = async (): Promise<string> => {
-    if (!window.ai?.languageModel) {
-        throw new Error("Chrome AI is not available.");
-    }
-
-    const prompt = "Generate a single, short, funny sentence that is a pangram (contains all letters of the alphabet). Make it creative and whimsical. Only return the sentence itself, with no extra text or quotation marks.";
-
-    try {
-        const session = await window.ai.languageModel.create();
-        const response = await session.prompt(prompt);
-        session.destroy();
-        return response.trim();
-    } catch (error) {
-        console.error("Error generating sentence with Chrome AI:", error);
-        return "The quick brown fox jumps over the lazy dog.";
-    }
-};
+const PREVIEW_SENTENCES = [
+    "The Margrave of the Leaking Stairwell requests fewer vowels and more gravitas.",
+    "Gerald the Unhurried set the headline in stone, then waited for applause.",
+    "A perfectly ordinary serif walked into the bar and quietly raised the tone.",
+    "The Ledger of Mild Regret records every kerning decision since Tuesday.",
+    "Behold: the Teaspoon of Considerable Ceremony, now in bold italic.",
+    "Marjorie, Lady Keeper of the Spare Pencils, has approved exactly one ligature.",
+    "The quick brown fox has retired. His understudy is adequate.",
+    "The headline survived the meeting. The subhead is remembered fondly.",
+    "Sixty-two typefaces entered the shortlist. Two left. Nobody speaks of the rest.",
+    "Keith, an entirely unremarkable body font, reads beautifully at sixteen pixels.",
+    "The Prophecy of the Slightly Generous Tracking has come to pass, as foretold.",
+    "Dramatic contrast, modest x-height, and the quiet dignity of a good comma.",
+];
 
 /**
- * Generate funny sentence using Cloud AI
- */
-const generateFunnySentence_Cloud = async (): Promise<string> => {
-    const ai = getCloudAI();
-    const prompt = "Generate a single, short, funny sentence that is a pangram (contains all letters of the alphabet). Make it creative and whimsical. Only return the sentence itself, with no extra text or quotation marks.";
-    try {
-        const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: prompt,
-        });
-        return response.text.trim();
-    } catch (error) {
-        console.error("Error generating sentence with Cloud AI:", error);
-        return "The quick brown fox jumps over the lazy dog.";
-    }
-};
-
-/**
- * Main generateFunnySentence function - routes to appropriate implementation
+ * Returns a random preview sentence (no network, no AI quota).
+ * Kept async with the same signature so callers don't change.
  */
 export const generateFunnySentence = async (): Promise<string> => {
-    try {
-        const mode = await getAIMode();
-        const validation = await validateAIMode(mode);
-
-        if (!validation.valid) {
-            return "The quick brown fox jumps over the lazy dog.";
-        }
-
-        if (mode === 'chrome') {
-            return await generateFunnySentence_Chrome();
-        } else {
-            return await generateFunnySentence_Cloud();
-        }
-    } catch (error) {
-        console.error("Error in generateFunnySentence:", error);
-        return "The quick brown fox jumps over the lazy dog.";
-    }
+    return PREVIEW_SENTENCES[Math.floor(Math.random() * PREVIEW_SENTENCES.length)];
 };
 
 const glyphComparisonSchema = {
@@ -699,14 +703,16 @@ Provide an overall assessment of which font has superior glyph clarity and why. 
     const contents = { parts: [textPart, filePart1, filePart2] };
 
     try {
-        const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: contents,
-            config: {
-                responseMimeType: 'application/json',
-                responseSchema: glyphComparisonResultSchema,
-            },
-        });
+        const response = await retryOperation(() =>
+            ai.models.generateContent({
+                model: GEMINI_MODEL,
+                contents: contents,
+                config: {
+                    responseMimeType: 'application/json',
+                    responseSchema: glyphComparisonResultSchema,
+                },
+            })
+        );
 
         const jsonText = response.text.trim();
         return JSON.parse(jsonText) as GlyphComparisonResult;
@@ -917,15 +923,17 @@ FINAL REQUIREMENTS:
 Your response MUST be a JSON object conforming to the schema. No markdown.`;
 
     try {
-        const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: prompt,
-            config: {
-                responseMimeType: 'application/json',
-                responseSchema: fontSuggestionResultSchema,
-                temperature: request.temperature || 0.5, // Use user's preference
-            },
-        });
+        const response = await retryOperation(() =>
+            ai.models.generateContent({
+                model: GEMINI_MODEL,
+                contents: prompt,
+                config: {
+                    responseMimeType: 'application/json',
+                    responseSchema: fontSuggestionResultSchema,
+                    temperature: request.temperature || 0.5, // Use user's preference
+                },
+            })
+        );
 
         const jsonText = response.text.trim();
         return JSON.parse(jsonText) as FontSuggestionResult;
@@ -1069,14 +1077,16 @@ REQUIREMENTS:
 Your response MUST be a JSON object conforming to the schema. Do not output markdown format.`;
 
     try {
-        const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: prompt,
-            config: {
-                responseMimeType: 'application/json',
-                responseSchema: fontDNAResultSchema,
-            },
-        });
+        const response = await retryOperation(() =>
+            ai.models.generateContent({
+                model: GEMINI_MODEL,
+                contents: prompt,
+                config: {
+                    responseMimeType: 'application/json',
+                    responseSchema: fontDNAResultSchema,
+                },
+            })
+        );
 
         const jsonText = response.text.trim();
         return JSON.parse(jsonText) as FontDNAResult;
@@ -1164,14 +1174,16 @@ Provide detailed typography context including:
 Your response MUST be a JSON object conforming to the schema. Do not output markdown format.`;
 
     try {
-        const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: prompt,
-            config: {
-                responseMimeType: 'application/json',
-                responseSchema: typographyContextSchema,
-            },
-        });
+        const response = await retryOperation(() =>
+            ai.models.generateContent({
+                model: GEMINI_MODEL,
+                contents: prompt,
+                config: {
+                    responseMimeType: 'application/json',
+                    responseSchema: typographyContextSchema,
+                },
+            })
+        );
 
         const jsonText = response.text.trim();
         return JSON.parse(jsonText);
@@ -1321,15 +1333,17 @@ ALSO PROVIDE:
 FORMAT: Return ONLY valid JSON matching the schema. No markdown.`;
 
     try {
-        const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: prompt,
-            config: {
-                responseMimeType: 'application/json',
-                responseSchema: batchCompatibilitySchema,
-                temperature: 0.2, // Low temperature for deterministic, consistent scoring
-            },
-        });
+        const response = await retryOperation(() =>
+            ai.models.generateContent({
+                model: GEMINI_MODEL,
+                contents: prompt,
+                config: {
+                    responseMimeType: 'application/json',
+                    responseSchema: batchCompatibilitySchema,
+                    temperature: 0.2, // Low temperature for deterministic, consistent scoring
+                },
+            })
+        );
 
         const jsonText = response.text.trim();
         return JSON.parse(jsonText) as BatchCompatibilityResult;
@@ -1440,15 +1454,17 @@ OUTPUT: JSON matching the schema. Rank fonts from best to worst match.`;
   };
 
   try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: contents,
-      config: {
-        responseMimeType: 'application/json',
-        responseSchema: useCaseAnalysisResultSchema,
-        temperature: 0.3, // Lower for more consistent analysis
-      },
-    });
+    const response = await retryOperation(() =>
+        ai.models.generateContent({
+          model: GEMINI_MODEL,
+          contents: contents,
+          config: {
+            responseMimeType: 'application/json',
+            responseSchema: useCaseAnalysisResultSchema,
+            temperature: 0.3, // Lower for more consistent analysis
+          },
+        })
+    );
 
     const jsonText = response.text.trim();
     return JSON.parse(jsonText) as UseCaseAnalysisResult;

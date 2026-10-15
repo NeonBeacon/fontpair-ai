@@ -204,3 +204,33 @@ export function getCacheStats(): {
     newestEntry
   };
 }
+
+
+/**
+ * Raw cache entries (key -> stored JSON string), for including in a data backup
+ */
+export function exportCacheEntries(): Record<string, string> {
+  const entries: Record<string, string> = {};
+  Object.keys(localStorage).forEach(key => {
+    if (key.startsWith(CACHE_PREFIX)) {
+      const value = localStorage.getItem(key);
+      if (value) entries[key] = value;
+    }
+  });
+  return entries;
+}
+
+/**
+ * Restore cache entries from a backup. Anything outside the cache prefix is ignored.
+ */
+export function importCacheEntries(entries: Record<string, unknown>): void {
+  Object.entries(entries).forEach(([key, value]) => {
+    if (key.startsWith(CACHE_PREFIX) && typeof value === 'string') {
+      try {
+        localStorage.setItem(key, value);
+      } catch (error) {
+        console.error('Error restoring cache entry:', error);
+      }
+    }
+  });
+}

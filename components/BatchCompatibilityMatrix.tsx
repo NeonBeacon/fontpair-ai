@@ -91,7 +91,7 @@ const BatchCompatibilityMatrix: React.FC<BatchCompatibilityMatrixProps> = ({
             onClick={onClose}
         >
             <div
-                className="bg-surface rounded-lg w-full max-w-5xl max-h-[90vh] overflow-hidden border border-border shadow-2xl flex flex-col"
+                className="bg-surface rounded-lg w-full max-w-5xl max-h-[90dvh] overflow-hidden border border-border shadow-2xl flex flex-col"
                 onClick={e => e.stopPropagation()}
             >
                 {/* Header */}

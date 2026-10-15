@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { CadmusLogoIcon, SparklesIcon, HistoryIcon, SettingsIcon, LockIcon } from './components/Icons';
-import AnalysisColumn from './components/AnalysisColumn';
+import AnalysisColumn, { type AnalysisColumnHandle } from './components/AnalysisColumn';
 import type { FontAnalysis, PairingCritique, GlyphComparisonResult, AIMode, Project } from './types';
 import { critiqueFontPairing, compareGlyphs, analyzeFont } from './services/geminiService';
 import PairingCritiqueModal from './components/PairingCritiqueModal';
@@ -21,17 +21,49 @@ import QuickAnalysisModal from './components/QuickAnalysisModal';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { getAIMode, setAIMode, getAPIKey, validateAIMode, isChromeAIAvailable } from './utils/aiSettings';
 import { generateFontImage, stripBase64Prefix } from './utils/fontUtils';
-import { checkActivationStatus } from './services/licenseService';
+import { decodeShareData } from './utils/fileUtils';
+import { checkActivationStatus, getStoredLicense } from './services/licenseService';
 import { getSession, supabase } from './services/authService';
 import { getHistory } from './historyService';
 import { getUserTier, setUserTier, isProfessional, canPerformAnalysis, canPerformCritique, incrementLifetimeCritiqueCount, hasUsedFreeCritique, type UserTier } from './services/tierService';
 
 type ViewMode = 'comparison' | 'suggestions';
 
+// Read a shared analysis out of the URL hash.
+// Share links are UTF-8 + base64; older links are plain base64 and still open.
+const readSharedLink = (): { analysis: FontAnalysis | null; error: string | null } => {
+  const hash = window.location.hash.slice(1);
+  // No hash, or an auth redirect (e.g. #error=...&error_code=...), which is not a share link
+  if (!hash || hash.includes('&')) return { analysis: null, error: null };
+  try {
+    const data = decodeShareData(hash) as FontAnalysis;
+    if (!data || typeof data !== 'object' || typeof data.fontName !== 'string') {
+      throw new Error('Share link does not contain an analysis');
+    }
+    return { analysis: data, error: null };
+  } catch (e) {
+    console.error("Failed to parse shared data from URL", e);
+    return { analysis: null, error: "This share link couldn't be opened. It may be incomplete or damaged." };
+  }
+};
+
+// A purchased licence beats a free magic-link session: a buyer who once signed in
+// with an email link must not be downgraded to Free on every reload.
+const resolveSessionTier = async (): Promise<UserTier> => {
+  if (getStoredLicense()) {
+    const licenseResult = await checkActivationStatus();
+    if (licenseResult.valid) return 'professional';
+  }
+  return 'free';
+};
+
 
 const App: React.FC = () => {
   const [viewMode, setViewMode] = useState<ViewMode>('comparison');
-  const [sharedAnalysis, setSharedAnalysis] = useState<FontAnalysis | null>(null);
+  // Read the share link up front so a recipient never flashes the licence check first
+  const [initialShare] = useState(readSharedLink);
+  const [sharedAnalysis, setSharedAnalysis] = useState<FontAnalysis | null>(initialShare.analysis);
+  const [shareLinkError, setShareLinkError] = useState<string | null>(initialShare.error);
   const [leftAnalysis, setLeftAnalysis] = useState<FontAnalysis | null>(null);
   const [rightAnalysis, setRightAnalysis] = useState<FontAnalysis | null>(null);
   const [critique, setCritique] = useState<PairingCritique | null>(null);
@@ -46,7 +78,7 @@ const App: React.FC = () => {
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [aiMode, setAiModeState] = useState<AIMode>('cloud');
   const [chromeAIAvailable, setChromeAIAvailable] = useState(false);
-  const [hasAPIKey, setHasAPIKey] = useState(false);
+  const [hasAPIKey, setHasAPIKey] = useState(() => !!getAPIKey());
   const [isLicenseValid, setIsLicenseValid] = useState<boolean | null>(null); // null = checking, true = valid, false = invalid
   const [isCheckingLicense, setIsCheckingLicense] = useState(true);
   const [showOnboarding, setShowOnboarding] = useState(false);
@@ -57,6 +89,10 @@ const App: React.FC = () => {
   
   // Quick Analysis State
   const [quickAnalysisFont, setQuickAnalysisFont] = useState<string | null>(null);
+
+  // Column handles, used to swap what's loaded in each column
+  const leftColumnRef = useRef<AnalysisColumnHandle>(null);
+  const rightColumnRef = useRef<AnalysisColumnHandle>(null);
 
   // Queued Fonts State
   const [leftQueuedFont, setLeftQueuedFont] = useState<string | null>(null);
@@ -144,9 +180,10 @@ const App: React.FC = () => {
             // Clean up the URL (remove the code parameter)
             window.history.replaceState({}, document.title, window.location.pathname);
             
+            const sessionTier = await resolveSessionTier();
             if (mounted) {
-              setUserTier('free');
-              setUserTierState('free');
+              setUserTier(sessionTier);
+              setUserTierState(sessionTier);
               setIsLicenseValid(true);
               setIsCheckingLicense(false);
             }
@@ -163,9 +200,11 @@ const App: React.FC = () => {
         
         if (session) {
           console.log("✅ Existing session found for:", session.user?.email);
+          // A valid licence on this device wins over the free session
+          const sessionTier = await resolveSessionTier();
           if (mounted) {
-            setUserTier('free');
-            setUserTierState('free');
+            setUserTier(sessionTier);
+            setUserTierState(sessionTier);
             setIsLicenseValid(true);
             setIsCheckingLicense(false);
           }
@@ -200,10 +239,15 @@ const App: React.FC = () => {
 
         if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') && session) {
           console.log("✅ Auth state changed - user authenticated:", session.user?.email);
-          setUserTier('free');
-          setUserTierState('free');
-          setIsLicenseValid(true);
-          setIsCheckingLicense(false);
+          // Run outside this callback: awaiting other Supabase calls inside it can deadlock the auth client
+          setTimeout(async () => {
+            const sessionTier = await resolveSessionTier();
+            if (!mounted) return;
+            setUserTier(sessionTier);
+            setUserTierState(sessionTier);
+            setIsLicenseValid(true);
+            setIsCheckingLicense(false);
+          }, 0);
         } else if (event === 'SIGNED_OUT') {
           console.log("👋 User signed out");
           setIsLicenseValid(false);
@@ -224,19 +268,9 @@ const App: React.FC = () => {
 
   useEffect(() => {
     const handleHashChange = () => {
-      const hash = window.location.hash.slice(1);
-      if (hash) {
-        try {
-          const decodedJson = atob(hash);
-          const data = JSON.parse(decodedJson);
-          setSharedAnalysis(data as FontAnalysis);
-        } catch (e) {
-          console.error("Failed to parse shared data from URL", e);
-          window.location.hash = ''; // Clear invalid hash
-        }
-      } else {
-        setSharedAnalysis(null);
-      }
+      const { analysis, error } = readSharedLink();
+      setSharedAnalysis(analysis);
+      setShareLinkError(error);
     };
 
     window.addEventListener('hashchange', handleHashChange);
@@ -266,13 +300,12 @@ const App: React.FC = () => {
     initAISettings();
   }, []);
 
-  // Check if user has completed onboarding OR needs to add API key
+  // Check if user has completed onboarding
   useEffect(() => {
     const hasCompleted = localStorage.getItem('onboarding_completed');
-    const apiKey = getAPIKey();
 
-    // Show onboarding if: (not completed AND license valid) OR (no API key - force BYOK setup)
-    if ((!hasCompleted && isLicenseValid) || (!apiKey && isLicenseValid)) {
+    // Show onboarding once, for new users. The "connect your AI" banner covers a missing key.
+    if (!hasCompleted && isLicenseValid) {
       // Delay slightly to ensure DOM is ready
       setTimeout(() => setShowOnboarding(true), 500);
     }
@@ -281,9 +314,13 @@ const App: React.FC = () => {
   // Toast notification state
   const [toast, setToast] = useState<{ message: string; type: 'info' | 'warning' | 'error' } | null>(null);
 
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const showToast = (message: string, type: 'info' | 'warning' | 'error' = 'info') => {
     setToast({ message, type });
-    setTimeout(() => setToast(null), 4000);
+    // A newer toast must not be cleared by an older toast's timer; errors stay longer so they can be read
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => setToast(null), type === 'error' ? 8000 : 4000);
   };
 
   // Process queued fonts from Find Fonts
@@ -382,8 +419,8 @@ const App: React.FC = () => {
           }
       } catch (e) {
           console.error("Critique failed:", e);
-          setCritiqueError("The AI critique failed. Please try again.");
-          setTimeout(() => setCritiqueError(null), 4000);
+          setCritiqueError(e instanceof Error && e.message ? e.message : "The AI critique failed. Please try again.");
+          setTimeout(() => setCritiqueError(null), 8000);
       } finally {
           setIsCritiquing(false);
       }
@@ -413,6 +450,7 @@ const App: React.FC = () => {
       setGlyphComparison(result);
     } catch (e) {
       console.error("Glyph comparison failed:", e);
+      showToast(e instanceof Error && e.message ? e.message : "The glyph comparison failed. Please try again.", 'error');
     } finally {
       setIsComparingGlyphs(false);
     }
@@ -445,6 +483,15 @@ const App: React.FC = () => {
     setLeftPreviewImage(rightPreviewImage);
     setRightAnalysis(tempAnalysis);
     setRightPreviewImage(tempPreview);
+
+    // Also swap what each column has loaded (uploaded file / Google font), so the
+    // live preview and analysis in a column stay about the same font
+    const leftInput = leftColumnRef.current?.getInputState();
+    const rightInput = rightColumnRef.current?.getInputState();
+    if (leftInput && rightInput) {
+      leftColumnRef.current?.setInputState(rightInput);
+      rightColumnRef.current?.setInputState(leftInput);
+    }
   };
 
   const handleLoadSearchFromHistory = (item: import('./historyService').SearchHistoryItem) => {
@@ -469,6 +516,43 @@ const App: React.FC = () => {
     setShowOnboarding(false);
   };
 
+  // A shared link is read-only and must open for the recipient without a licence,
+  // so it is rendered before the licence checks below.
+  if (sharedAnalysis || shareLinkError) {
+    return (
+      <div className="min-h-screen bg-background text-text-dark flex flex-col font-sans">
+        <PaperTexture />
+        <header className="w-full px-4 sm:px-6 paper-texture-bg border-b-2 flex justify-center" style={{ borderBottomColor: 'rgba(107, 93, 79, 0.3)' }}>
+          <CadmusLogoIcon aria-hidden="true" className="w-auto icon-embossed" style={{ color: '#8B7355', height: '88px' }} />
+        </header>
+
+        <main className="flex-grow container mx-auto p-4 md:p-8 flex flex-col items-center">
+          <div className="w-full max-w-4xl">
+            <div className="mb-4 text-center">
+              {sharedAnalysis ? (
+                <p className="text-secondary">You are viewing a shared analysis.</p>
+              ) : (
+                <p role="alert" className="text-danger font-semibold">{shareLinkError}</p>
+              )}
+              <button onClick={resetToComparisonView} className="text-accent font-semibold hover:underline">
+                {isLicenseValid ? 'Return to Comparison View' : 'Open FontPair AI'}
+              </button>
+            </div>
+            {sharedAnalysis && (
+              <AnalysisColumn key="shared" analysisResult={sharedAnalysis} onAnalysisComplete={() => {}} isSharedView={true} />
+            )}
+          </div>
+        </main>
+
+        <footer className="w-full p-4 text-center text-secondary/70 text-sm border-t border-border">
+          <a href="https://www.fontpairai.com" target="_blank" rel="noopener noreferrer" className="hover:text-accent underline">
+            Made with FontPair AI — fontpairai.com
+          </a>
+        </footer>
+      </div>
+    );
+  }
+
   // Show loading screen while checking license
   if (isCheckingLicense) {
     return (
@@ -492,21 +576,31 @@ const App: React.FC = () => {
       {/* SVG Filters for paper texture */}
       <PaperTexture />
 
-      <header className="w-full px-6 paper-texture-bg border-b-2" style={{ borderBottomColor: 'rgba(107, 93, 79, 0.3)', height: '100px' }}>
-        <div className="container mx-auto flex justify-between items-center gap-6 h-full">
+      <header className="w-full px-3 sm:px-6 py-2 sm:py-0 h-auto sm:h-[100px] paper-texture-bg border-b-2" style={{ borderBottomColor: 'rgba(107, 93, 79, 0.3)' }}>
+        <div className="container mx-auto flex flex-wrap sm:flex-nowrap justify-between items-center gap-x-3 gap-y-2 sm:gap-6 sm:h-full">
           {/* Left: Logo with embossed effect */}
           <div className="flex items-center">
-            <CadmusLogoIcon aria-hidden="true" className="w-auto icon-embossed" style={{ color: '#8B7355', height: '150px' }} />
+            <CadmusLogoIcon aria-hidden="true" className="w-auto icon-embossed h-[72px] sm:h-[150px]" style={{ color: '#8B7355' }} />
           </div>
 
-          {/* Center: Cloud AI Status Badge */}
-          <div className="px-4 py-2 bg-[#1A3431] border border-[#2D4E4A] rounded-lg flex items-center gap-2 shadow-inner">
-            <span className="w-2 h-2 rounded-full bg-[#FF8E24] animate-pulse"></span>
-            <span className="text-sm font-medium text-[#F5F2EB]">Cloud AI Active</span>
-          </div>
+          {/* Center: Cloud AI status. Without a key it becomes a prompt to add one. */}
+          {hasAPIKey ? (
+            <div className="order-last sm:order-none basis-full sm:basis-auto justify-center px-4 py-2 bg-[#1A3431] border border-[#2D4E4A] rounded-lg flex items-center gap-2 shadow-inner">
+              <span className="w-2 h-2 rounded-full bg-[#FF8E24] animate-pulse"></span>
+              <span className="text-sm font-medium text-[#F5F2EB]">Cloud AI Active</span>
+            </div>
+          ) : (
+            <button
+              onClick={() => setShowSettings(true)}
+              className="order-last sm:order-none basis-full sm:basis-auto justify-center px-4 py-2 bg-amber-400 hover:bg-amber-300 text-amber-950 border border-amber-600 rounded-lg flex items-center gap-2 shadow-inner text-sm font-bold transition-colors"
+            >
+              <span className="w-2 h-2 rounded-full bg-amber-700 animate-pulse"></span>
+              Add Gemini key
+            </button>
+          )}
 
           {/* Right: Action Buttons with paper inset effect */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             {!isProfessional() && (
               <div className="hidden md:flex items-center gap-4 mr-2 text-xs text-teal-light/70 bg-black/10 px-3 py-1.5 rounded-full">
                 <span>{canPerformAnalysis().remaining}/3 analyses</span>
@@ -527,17 +621,20 @@ const App: React.FC = () => {
             <button
               data-tour="find-fonts-button"
               onClick={() => setViewMode(viewMode === 'comparison' ? 'suggestions' : 'comparison')}
-              className={`px-5 py-2.5 rounded-md font-semibold transition-all duration-200 ${
+              className={`p-2.5 sm:px-5 rounded-md font-semibold transition-all duration-200 flex items-center ${
                 viewMode === 'suggestions'
                   ? 'button-inset-active'
                   : 'button-inset'
               }`}
-              aria-label="Toggle view mode"
+              aria-label={viewMode === 'suggestions' ? 'Switch to Font Pair' : 'Switch to Find Fonts'}
               style={{
                 color: viewMode === 'suggestions' ? '#3d3226' : '#6b5d4f'
               }}
             >
-              <span className="text-sm">
+              <svg className="h-6 w-6 sm:hidden icon-embossed" style={{ color: '#8B7355' }} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M17 10.5a6.5 6.5 0 11-13 0 6.5 6.5 0 0113 0z" />
+              </svg>
+              <span className="hidden sm:inline text-sm">
                 {viewMode === 'suggestions' ? 'Font Pair' : 'Find Fonts'}
               </span>
             </button>
@@ -578,20 +675,43 @@ const App: React.FC = () => {
       </header>
 
       <main className="flex-grow container mx-auto p-4 md:p-8 flex flex-col items-center">
+        {/* First-run: the app needs the buyer's own Gemini key before any AI feature works */}
+        {!hasAPIKey && (
+          <section
+            aria-label="Connect your AI"
+            className="w-full max-w-7xl mb-6 rounded-xl border-2 border-accent bg-paper-light p-5 shadow-md flex flex-col md:flex-row md:items-center gap-4"
+          >
+            <div className="flex-1">
+              <h2 className="text-xl font-bold text-teal-dark">One step left: connect your AI</h2>
+              <p className="mt-1 text-text-secondary">
+                FontPair AI runs on your own free Google Gemini key. It takes about two minutes.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-3">
+              <a
+                href="https://aistudio.google.com/app/apikey"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-5 py-2.5 rounded-lg font-bold border-2 border-teal-dark text-teal-dark hover:bg-teal-dark hover:text-text-light transition-colors"
+              >
+                Get a free key ↗
+              </a>
+              <button
+                onClick={() => setShowSettings(true)}
+                className="px-5 py-2.5 rounded-lg font-bold bg-accent text-text-dark hover:bg-accent-dark transition-colors"
+              >
+                Paste my key
+              </button>
+            </div>
+          </section>
+        )}
+
         {viewMode === 'suggestions' ? (
-          <FontSuggestionView 
-            onAnalyzeFont={handleAnalyzeFontFromSuggestions} 
+          <FontSuggestionView
+            onAnalyzeFont={handleAnalyzeFontFromSuggestions}
             persistedState={findFontsState}
             onStateChange={setFindFontsState}
           />
-        ) : sharedAnalysis ? (
-          <div className="w-full max-w-4xl">
-             <div className="mb-4 text-center">
-                <p className="text-secondary">You are viewing a shared analysis.</p>
-                <button onClick={resetToComparisonView} className="text-accent font-semibold hover:underline">Return to Comparison View</button>
-            </div>
-            <AnalysisColumn key="shared" analysisResult={sharedAnalysis} onAnalysisComplete={() => {}} isSharedView={true} />
-          </div>
         ) : (
           <div className="w-full max-w-7xl">
             <p className="text-center text-lg text-light-secondary mb-8 max-w-4xl mx-auto">
@@ -685,9 +805,10 @@ const App: React.FC = () => {
                     <div className="text-center mb-3">
                       <span className="text-xs uppercase tracking-widest text-teal-light font-semibold">Display / Header Font</span>
                     </div>
-                    <AnalysisColumn 
-                        key="left" 
-                        analysisResult={leftAnalysis} 
+                    <AnalysisColumn
+                        key="left"
+                        ref={leftColumnRef}
+                        analysisResult={leftAnalysis}
                         onAnalysisComplete={setLeftAnalysis} 
                         onPreviewCaptured={setLeftPreviewImage} 
                         savedPreviewImage={leftPreviewImage}
@@ -732,9 +853,10 @@ const App: React.FC = () => {
                     <div className="text-center mb-3">
                       <span className="text-xs uppercase tracking-widest text-teal-light font-semibold">Body / Paragraph Font</span>
                     </div>
-                    <AnalysisColumn 
-                        key="right" 
-                        analysisResult={rightAnalysis} 
+                    <AnalysisColumn
+                        key="right"
+                        ref={rightColumnRef}
+                        analysisResult={rightAnalysis}
                         onAnalysisComplete={setRightAnalysis} 
                         onPreviewCaptured={setRightPreviewImage} 
                         savedPreviewImage={rightPreviewImage}
@@ -768,6 +890,7 @@ const App: React.FC = () => {
 
       <SettingsModal
         isOpen={showSettings}
+        onApiKeyChange={() => setHasAPIKey(!!getAPIKey())}
         onClose={() => {
           setShowSettings(false);
           // Refresh AI settings after closing settings
@@ -837,16 +960,19 @@ const App: React.FC = () => {
         onClose={() => setShowShortcuts(false)}
       />
 
-      {/* Toast Notification (Temporarily commented out for debugging) */}
-      {/* {toast && (
-        <div className={`fixed bottom-6 left-1/2 transform -translate-x-1/2 z-50 px-6 py-3 rounded-lg shadow-lg animate-fade-in-up ${
-          toast.type === 'error' ? 'bg-red-500 text-white' :
-          toast.type === 'warning' ? 'bg-yellow-500 text-black' :
-          'bg-teal-dark text-text-light border border-teal-medium'
-        }`}>
+      {/* Toast Notification */}
+      {toast && (
+        <div
+          role={toast.type === 'error' ? 'alert' : 'status'}
+          className={`fixed bottom-6 left-1/2 transform -translate-x-1/2 z-[10000] max-w-[calc(100vw-2rem)] px-6 py-3 rounded-lg shadow-lg animate-fade-in-up ${
+            toast.type === 'error' ? 'bg-red-500 text-white' :
+            toast.type === 'warning' ? 'bg-yellow-500 text-black' :
+            'bg-teal-dark text-text-light border border-teal-medium'
+          }`}
+        >
           <p className="text-sm font-medium">{toast.message}</p>
         </div>
-      )} */}
+      )}
 
       <footer className="w-full p-4 text-center text-secondary/70 text-sm border-t border-border">
         Powered by Google Gemini

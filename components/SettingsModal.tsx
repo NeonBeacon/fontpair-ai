@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { CloseIcon, CheckIcon, CopyIcon } from './Icons';
-import { getAPIKey, setAPIKey, clearAPIKey, getChromeAIStatus } from '../utils/aiSettings';
+import { getAPIKey, setAPIKey, clearAPIKey, getChromeAIStatus, getAIMode, setAIMode } from '../utils/aiSettings';
+import { GEMINI_MODEL } from '../services/geminiService';
 import {
     getStoredLicense,
     getLicenseInfo,
@@ -8,18 +9,54 @@ import {
     getDeviceFingerprint,
     type LicenseInfo
 } from '../services/licenseService';
-import { clearCache, getCacheStats } from '../utils/fontCache';
+import { clearCache, getCacheStats, exportCacheEntries, importCacheEntries } from '../utils/fontCache';
 import { getProjectsState } from '../services/projectService';
 
 interface SettingsModalProps {
     isOpen: boolean;
     onClose: () => void;
     onRestartTour?: () => void;
+    // Called right after the Gemini key is saved or cleared, so the app can react without waiting for close
+    onApiKeyChange?: () => void;
 }
 
-const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, onRestartTour }) => {
+// localStorage key written by historyService (analysis history)
+const HISTORY_STORAGE_KEY = 'cadmus_analysis_history';
+
+type KeyStatus = { state: 'idle' } | { state: 'testing' } | { state: 'working' } | { state: 'failed'; reason: string };
+
+// Quick check that a Gemini key is accepted by Google. Reads model metadata only,
+// so it is not a generation request and does not use the daily AI allowance.
+const testGeminiKey = async (key: string): Promise<KeyStatus> => {
+    try {
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}?key=${encodeURIComponent(key)}`);
+        if (response.ok) return { state: 'working' };
+
+        let message = '';
+        let isInvalidKey = false;
+        try {
+            const body = await response.json();
+            message = body?.error?.message || '';
+            isInvalidKey = JSON.stringify(body?.error ?? '').includes('API_KEY_INVALID') || /api key not valid/i.test(message);
+        } catch {
+            // Non-JSON error body; fall back to the status line
+        }
+
+        if (isInvalidKey) {
+            return { state: 'failed', reason: "Google says this key isn't valid. Check you copied all of it." };
+        }
+        const fallback = `Google replied ${response.status}${response.statusText ? ` ${response.statusText}` : ''}`;
+        return { state: 'failed', reason: (message || fallback).slice(0, 160) };
+    } catch {
+        return { state: 'failed', reason: "couldn't reach Google. Check your internet connection." };
+    }
+};
+
+const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, onRestartTour, onApiKeyChange }) => {
     const [apiKey, setApiKeyState] = useState('');
     const [isSaving, setIsSaving] = useState(false);
+    const [keyStatus, setKeyStatus] = useState<KeyStatus>({ state: 'idle' });
+    const [keyFirst, setKeyFirst] = useState(false);
     const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
     const [chromeAIStatus, setChromeAIStatus] = useState<{
         available: boolean;
@@ -73,24 +110,27 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, onRestar
         localStorage.setItem('cadmus_auto_save_interval', minutes.toString());
     };
 
+    // Everything a backup contains. The Gemini API key is deliberately NOT included:
+    // backup files get emailed and synced around, and a key is a credential.
+    const buildExportData = async () => ({
+        version: 1,
+        exportedAt: new Date().toISOString(),
+        projects: getProjectsState(),
+        history: localStorage.getItem(HISTORY_STORAGE_KEY),
+        cache: exportCacheEntries(),
+        settings: {
+            aiMode: await getAIMode()
+        }
+    });
+
     // Auto-save effect
     useEffect(() => {
         if (!autoSaveEnabled) return;
 
         const intervalMs = autoSaveInterval * 60 * 1000;
-        const timer = setInterval(() => {
+        const timer = setInterval(async () => {
             try {
-                const exportData = {
-                    version: 1,
-                    exportedAt: new Date().toISOString(),
-                    projects: getProjectsState(),
-                    history: localStorage.getItem('cadmus_font_history'),
-                    cache: localStorage.getItem('cadmus_font_cache'),
-                    settings: {
-                        apiKey: getAPIKey(),
-                        aiMode: localStorage.getItem('cadmus_ai_mode')
-                    }
-                };
+                const exportData = await buildExportData();
 
                 const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
                 const url = URL.createObjectURL(blob);
@@ -111,19 +151,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, onRestar
         return () => clearInterval(timer);
     }, [autoSaveEnabled, autoSaveInterval]);
 
-    const handleExportAllData = () => {
+    const handleExportAllData = async () => {
         try {
-            const exportData = {
-                version: 1,
-                exportedAt: new Date().toISOString(),
-                projects: getProjectsState(),
-                history: localStorage.getItem('cadmus_font_history'),
-                cache: localStorage.getItem('cadmus_font_cache'),
-                settings: {
-                    apiKey: getAPIKey(),
-                    aiMode: localStorage.getItem('cadmus_ai_mode')
-                }
-            };
+            const exportData = await buildExportData();
 
             const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
             const url = URL.createObjectURL(blob);
@@ -168,22 +198,23 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, onRestar
                 }
 
                 // Import history
-                if (importData.history) {
-                    localStorage.setItem('cadmus_font_history', importData.history);
+                if (typeof importData.history === 'string' && importData.history) {
+                    localStorage.setItem(HISTORY_STORAGE_KEY, importData.history);
                 }
 
-                // Import cache (optional)
-                if (importData.cache) {
-                    localStorage.setItem('cadmus_font_cache', importData.cache);
+                // Import cache (optional). Older backups stored a string here, which is skipped.
+                if (importData.cache && typeof importData.cache === 'object') {
+                    importCacheEntries(importData.cache);
                 }
 
-                // Import settings
+                // Import settings (older backups may still carry an apiKey; new ones never do)
                 if (importData.settings?.apiKey) {
                     setAPIKey(importData.settings.apiKey);
                     setApiKeyState(importData.settings.apiKey);
+                    onApiKeyChange?.();
                 }
-                if (importData.settings?.aiMode) {
-                    localStorage.setItem('cadmus_ai_mode', importData.settings.aiMode);
+                if (importData.settings?.aiMode === 'cloud' || importData.settings?.aiMode === 'chrome') {
+                    setAIMode(importData.settings.aiMode);
                 }
 
                 setDataMessage({ type: 'success', text: 'Data imported successfully! Refresh the page to see changes.' });
@@ -205,6 +236,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, onRestar
             // Load current API key
             const currentKey = getAPIKey();
             setApiKeyState(currentKey);
+
+            // No key yet: show the key box first (decided once per open, so typing never moves it)
+            setKeyFirst(!currentKey.trim());
 
             // Check Chrome AI status
             checkChromeAI();
@@ -364,23 +398,31 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, onRestar
         setTimeout(() => setCopiedFlag(null), 2000);
     };
 
-    const handleSaveAPIKey = () => {
+    const handleSaveAPIKey = async () => {
         setIsSaving(true);
         try {
+            // Always save the key, even if the check below fails (could be a network blip)
             setAPIKey(apiKey);
+            onApiKeyChange?.();
             setSaveMessage({ type: 'success', text: 'API key saved successfully!' });
             setTimeout(() => setSaveMessage(null), 3000);
         } catch (error) {
             setSaveMessage({ type: 'error', text: 'Failed to save API key' });
             setTimeout(() => setSaveMessage(null), 3000);
-        } finally {
             setIsSaving(false);
+            return;
         }
+
+        setKeyStatus({ state: 'testing' });
+        setKeyStatus(await testGeminiKey(apiKey.trim()));
+        setIsSaving(false);
     };
 
     const handleClearAPIKey = () => {
         clearAPIKey();
         setApiKeyState('');
+        setKeyStatus({ state: 'idle' });
+        onApiKeyChange?.();
         setSaveMessage({ type: 'success', text: 'API key cleared' });
         setTimeout(() => setSaveMessage(null), 3000);
     };
@@ -406,7 +448,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, onRestar
 
     return (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="paper-modal rounded-lg shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="paper-modal rounded-lg shadow-2xl max-w-3xl w-full max-h-[90dvh] overflow-y-auto">
                 {/* Header */}
                 <div className="sticky top-0 bg-surface/90 backdrop-blur-sm border-b border-teal-medium/30 p-6 flex justify-between items-center">
                     <h2 className="text-2xl font-bold text-text-light">AI Settings</h2>
@@ -420,7 +462,10 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, onRestar
                 </div>
 
                 {/* Content */}
-                <div className="p-6 space-y-8">
+                <div className="p-6 flex flex-col gap-8">
+                    {/* No key yet: the key box is shown first, so a new buyer doesn't have to scroll to find it */}
+                    {keyFirst && <div className="order-[-9998] border-t border-teal-medium/30"></div>}
+
                     {/* License Management Section - MOST IMPORTANT */}
                     <section className="space-y-4">
                         <div className="flex items-center justify-between">
@@ -732,7 +777,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, onRestar
                             )}
 
                             <p className="text-xs text-teal-light">
-                                Exported file includes: all projects with pairings, font analysis history, cached analyses, and API settings.
+                                Exported file includes: all projects with pairings, font analysis history, cached analyses, and your AI mode. Your Gemini API key is never included, so you'll paste it again after restoring.
                             </p>
 
                             {/* Auto-save Option */}
@@ -774,16 +819,30 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, onRestar
                     </section>
 
                     {/* Divider */}
-                    <div className="border-t border-teal-medium/30"></div>
+                    <div className={`border-t border-teal-medium/30 ${keyFirst ? 'hidden' : ''}`}></div>
 
                     {/* Gemini API Section - PRIMARY OPTION */}
-                    <section className="space-y-4">
+                    <section className={`space-y-4 ${keyFirst ? 'order-first' : ''}`}>
                         <div className="flex items-center gap-2">
                             <h3 className="text-xl font-semibold text-text-light">Gemini API Key (Recommended)</h3>
-                            {hasAPIKey && (
-                                <span className="text-xs px-2 py-1 rounded-full bg-green-500/20 text-green-300 flex items-center gap-1">
-                                    <CheckIcon className="w-3 h-3" />
-                                    Ready
+                            {hasAPIKey && keyStatus.state === 'working' && (
+                                <span role="status" className="text-xs px-2 py-1 rounded-full bg-green-500/20 text-green-300 flex items-center gap-1">
+                                    Working ✓
+                                </span>
+                            )}
+                            {hasAPIKey && keyStatus.state === 'testing' && (
+                                <span role="status" className="text-xs px-2 py-1 rounded-full bg-teal-medium/40 text-teal-light animate-pulse">
+                                    Testing key...
+                                </span>
+                            )}
+                            {hasAPIKey && keyStatus.state === 'failed' && (
+                                <span role="status" className="text-xs px-2 py-1 rounded-full bg-red-500/20 text-red-300">
+                                    Not working: {keyStatus.reason}
+                                </span>
+                            )}
+                            {hasAPIKey && keyStatus.state === 'idle' && (
+                                <span className="text-xs px-2 py-1 rounded-full bg-teal-medium/40 text-teal-light">
+                                    Not tested yet. Save to test it.
                                 </span>
                             )}
                         </div>
@@ -811,7 +870,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, onRestar
                                     id="api-key-input"
                                     type="password"
                                     value={apiKey}
-                                    onChange={(e) => setApiKeyState(e.target.value)}
+                                    onChange={(e) => { setApiKeyState(e.target.value); setKeyStatus({ state: 'idle' }); }}
                                     placeholder="Enter your Gemini API key..."
                                     className="w-full px-4 py-2 bg-teal-dark border border-teal-medium/40 rounded-md text-text-light placeholder-teal-light/50 focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent"
                                 />
@@ -823,7 +882,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, onRestar
                                     disabled={isSaving || !apiKey.trim()}
                                     className="px-4 py-2 bg-accent text-text-light font-semibold rounded-md hover:bg-accent-dark disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-md"
                                 >
-                                    {isSaving ? 'Saving...' : 'Save API Key'}
+                                    {isSaving ? 'Saving and testing...' : 'Save API Key'}
                                 </button>
                                 {hasAPIKey && (
                                     <button
@@ -846,7 +905,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, onRestar
                             )}
 
                             <div className="text-xs text-teal-light pt-2 space-y-1">
-                                <p>Free tier limits: 15 requests/min, 1M tokens/day</p>
+                                <p>Google's free tier gives each Google project a small daily allowance. When we measured in October 2026 it was about 20 AI requests a day on the default model, resetting at midnight Pacific (8am UK). Each analysis, critique or search uses one. For more, turn on billing for your project in Google AI Studio. Most requests then cost well under 1p.</p>
                                 <p>Your API key is stored locally in your browser and never sent to our servers.</p>
                             </div>
                         </div>

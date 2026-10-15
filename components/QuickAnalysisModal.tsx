@@ -131,7 +131,7 @@ const QuickAnalysisModal: React.FC<QuickAnalysisModalProps> = ({
       onClick={onClose}
     >
       <div 
-        className="paper-modal rounded-lg w-full max-w-4xl max-h-[90vh] shadow-2xl flex flex-col overflow-hidden"
+        className="paper-modal rounded-lg w-full max-w-4xl max-h-[90dvh] shadow-2xl flex flex-col overflow-hidden"
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}

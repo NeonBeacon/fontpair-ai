@@ -1,5 +1,6 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useImperativeHandle, forwardRef } from 'react';
 import { analyzeFont, generateFunnySentence } from '../services/geminiService';
+import { getFontName } from '../utils/fontUtils';
 import type { FontAnalysis } from '../types';
 import FileUpload from './FileUpload';
 import AnalysisResult from './AnalysisResult';
@@ -19,6 +20,51 @@ import { canPerformAnalysis, incrementDailyAnalysisCount, isProfessional } from 
 
 declare var html2canvas: any;
 
+// What the user put into a column (as opposed to the analysis it produced).
+// App uses this to swap the two columns' inputs together with their analyses.
+export interface AnalysisColumnInputState {
+    mode: 'upload' | 'google';
+    file: File | null;
+    googleFont: string;
+    previewImageBase64?: string;
+    isCachedResult: boolean;
+}
+
+export interface AnalysisColumnHandle {
+    getInputState: () => AnalysisColumnInputState;
+    setInputState: (state: AnalysisColumnInputState) => void;
+}
+
+// Draw an uploaded image file onto a canvas. Images have no live FontPreview to
+// screenshot, so the image itself is the preview.
+const imageFileToCanvas = (imageFile: File): Promise<HTMLCanvasElement> => {
+    return new Promise((resolve, reject) => {
+        const url = URL.createObjectURL(imageFile);
+        const img = new Image();
+        img.onload = () => {
+            URL.revokeObjectURL(url);
+            const canvas = document.createElement('canvas');
+            canvas.width = img.naturalWidth;
+            canvas.height = img.naturalHeight;
+            const ctx = canvas.getContext('2d');
+            if (!ctx) {
+                reject(new Error('Could not read the image.'));
+                return;
+            }
+            // White behind transparent PNGs, since the result is exported as JPEG
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(img, 0, 0);
+            resolve(canvas);
+        };
+        img.onerror = () => {
+            URL.revokeObjectURL(url);
+            reject(new Error('Could not read the image. Try a PNG or JPG.'));
+        };
+        img.src = url;
+    });
+};
+
 interface AnalysisColumnProps {
     analysisResult: FontAnalysis | null;
     onAnalysisComplete: (result: FontAnalysis | null) => void;
@@ -29,15 +75,15 @@ interface AnalysisColumnProps {
     onPreSelectedFontUsed?: () => void;
 }
 
-const AnalysisColumn: React.FC<AnalysisColumnProps> = ({ 
-    analysisResult, 
-    onAnalysisComplete, 
-    isSharedView = false, 
-    onPreviewCaptured, 
+const AnalysisColumn = forwardRef<AnalysisColumnHandle, AnalysisColumnProps>(({
+    analysisResult,
+    onAnalysisComplete,
+    isSharedView = false,
+    onPreviewCaptured,
     savedPreviewImage,
     preSelectedGoogleFont,
     onPreSelectedFontUsed
-}) => {
+}, ref) => {
     const [mode, setMode] = useState<'upload' | 'google'>(preSelectedGoogleFont ? 'google' : 'upload');
     const [file, setFile] = useState<File | null>(null);
     const [googleFont, setGoogleFont] = useState<string>(preSelectedGoogleFont || '');
@@ -52,6 +98,18 @@ const AnalysisColumn: React.FC<AnalysisColumnProps> = ({
     const [isGeneratingSentence, setIsGeneratingSentence] = useState<boolean>(false);
 
     const [previewColors, setPreviewColors] = useState({ background: '#1A3431', text: '#EDF7F6' });
+
+    useImperativeHandle(ref, () => ({
+        getInputState: () => ({ mode, file, googleFont, previewImageBase64, isCachedResult }),
+        setInputState: (state) => {
+            setMode(state.mode);
+            setFile(state.file);
+            setGoogleFont(state.googleFont);
+            setPreviewImageBase64(state.previewImageBase64);
+            setIsCachedResult(state.isCachedResult);
+            setError(null);
+        }
+    }));
 
     // Effect to handle when preSelectedGoogleFont changes
     React.useEffect(() => {
@@ -89,6 +147,53 @@ const AnalysisColumn: React.FC<AnalysisColumnProps> = ({
     }, [onAnalysisComplete]);
 
     const handleFontParsed = useCallback((font: any) => { parsedFontRef.current = font; }, []);
+
+    // Capture the preview image locally (no AI call): a screenshot of the live
+    // FontPreview, or the uploaded image itself. Also reports it to the parent so
+    // Compare Glyphs and PDF export have an image to work with.
+    const capturePreview = async () => {
+        let canvas: HTMLCanvasElement;
+
+        if (mode === 'upload' && file?.type.startsWith('image/')) {
+            // No FontPreview exists for image uploads, so use the image's own pixels
+            canvas = await imageFileToCanvas(file);
+        } else {
+            let elementToCapture = fontPreviewRef.current;
+            if (fontPreviewRef.current && typeof fontPreviewRef.current.getCaptureElement === 'function') {
+                elementToCapture = fontPreviewRef.current.getCaptureElement();
+            }
+
+            if (!elementToCapture) throw new Error("Preview element not found.");
+
+            canvas = await html2canvas(elementToCapture, { backgroundColor: previewColors.background });
+        }
+
+        // Resize logic: Max width 1024px
+        let finalCanvas = canvas;
+        if (canvas.width > 1024) {
+            const scale = 1024 / canvas.width;
+            const newWidth = 1024;
+            const newHeight = canvas.height * scale;
+
+            const resizedCanvas = document.createElement('canvas');
+            resizedCanvas.width = newWidth;
+            resizedCanvas.height = newHeight;
+            const ctx = resizedCanvas.getContext('2d');
+            if (ctx) {
+                ctx.drawImage(canvas, 0, 0, newWidth, newHeight);
+                finalCanvas = resizedCanvas;
+            }
+        }
+
+        // Convert to JPEG with 0.8 quality for faster processing
+        const dataUrl = finalCanvas.toDataURL('image/jpeg', 0.8);
+
+        // Save preview image for PDF export and glyph comparison
+        setPreviewImageBase64(dataUrl);
+        onPreviewCaptured?.(dataUrl);
+
+        return { canvas, dataUrl, base64: dataUrl.split(',')[1], mimeType: 'image/jpeg' };
+    };
 
     const handleAnalyzeClick = async () => {
         if (!canAnalyze) return;
@@ -130,6 +235,12 @@ const AnalysisColumn: React.FC<AnalysisColumnProps> = ({
                 if (cachedResult) {
                     console.log('✅ Using cached analysis');
                     setIsCachedResult(true);
+                    // Still capture the preview (local only) so Compare Glyphs works on cached results
+                    try {
+                        await capturePreview();
+                    } catch (captureErr) {
+                        console.warn('Could not capture preview for cached analysis:', captureErr);
+                    }
                     onAnalysisComplete(cachedResult);
                     setIsLoading(false);
                     return;
@@ -137,40 +248,7 @@ const AnalysisColumn: React.FC<AnalysisColumnProps> = ({
             }
 
             // Not cached - proceed with analysis
-            let elementToCapture = fontPreviewRef.current;
-            if (fontPreviewRef.current && typeof fontPreviewRef.current.getCaptureElement === 'function') {
-                elementToCapture = fontPreviewRef.current.getCaptureElement();
-            }
-
-            if (!elementToCapture) throw new Error("Preview element not found.");
-
-            const canvas = await html2canvas(elementToCapture, { backgroundColor: previewColors.background });
-            
-            // Resize logic: Max width 1024px
-            let finalCanvas = canvas;
-            if (canvas.width > 1024) {
-                const scale = 1024 / canvas.width;
-                const newWidth = 1024;
-                const newHeight = canvas.height * scale;
-                
-                const resizedCanvas = document.createElement('canvas');
-                resizedCanvas.width = newWidth;
-                resizedCanvas.height = newHeight;
-                const ctx = resizedCanvas.getContext('2d');
-                if (ctx) {
-                    ctx.drawImage(canvas, 0, 0, newWidth, newHeight);
-                    finalCanvas = resizedCanvas;
-                }
-            }
-
-            // Convert to JPEG with 0.8 quality for faster processing
-            const dataUrl = finalCanvas.toDataURL('image/jpeg', 0.8);
-            const base64 = dataUrl.split(',')[1];
-            const mimeType = 'image/jpeg';
-
-            // Save preview image for PDF export and glyph comparison
-            setPreviewImageBase64(dataUrl);
-            onPreviewCaptured?.(dataUrl);
+            const { canvas, base64, mimeType } = await capturePreview();
 
             let fontMetadata: string | undefined = undefined;
             let fileName: string = 'font_preview.jpg';
@@ -178,9 +256,12 @@ const AnalysisColumn: React.FC<AnalysisColumnProps> = ({
             if (mode === 'upload' && isFontFile && parsedFontRef.current) {
                 const font = parsedFontRef.current;
                 const metadataParts: string[] = [];
-                if (font.names.copyright?.en) metadataParts.push(`Copyright: ${font.names.copyright.en}`);
-                if (font.names.license?.en) metadataParts.push(`License: ${font.names.license.en}`);
-                if (font.names.designer?.en) metadataParts.push(`Designer: ${font.names.designer.en}`);
+                const copyright = getFontName(font, 'copyright');
+                const license = getFontName(font, 'license');
+                const designer = getFontName(font, 'designer');
+                if (copyright) metadataParts.push(`Copyright: ${copyright}`);
+                if (license) metadataParts.push(`License: ${license}`);
+                if (designer) metadataParts.push(`Designer: ${designer}`);
                 fontMetadata = metadataParts.join(' | ');
                 if(file) fileName = file.name;
             } else if (mode === 'upload' && file) {
@@ -266,7 +347,7 @@ const AnalysisColumn: React.FC<AnalysisColumnProps> = ({
             }
         } catch (err) {
             console.error(err);
-            setError('An error occurred during analysis. Please try again.');
+            setError(err instanceof Error && err.message ? err.message : 'An error occurred during analysis. Please try again.');
         } finally {
             setIsLoading(false);
         }
@@ -376,7 +457,8 @@ const AnalysisColumn: React.FC<AnalysisColumnProps> = ({
         );
     }
 
-    const showPreview = canAnalyze || analysisResult;
+    // A shared view has no font to preview, only the saved analysis
+    const showPreview = (canAnalyze || analysisResult) && !isSharedView;
 
     return (
         <div className="flex flex-col gap-8 w-full">
@@ -390,6 +472,6 @@ const AnalysisColumn: React.FC<AnalysisColumnProps> = ({
             )}
         </div>
     );
-};
+});
 
 export default AnalysisColumn;

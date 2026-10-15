@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import type { UseCaseAnalysisResult } from '../types';
 import { CloseIcon } from './Icons';
 
@@ -20,9 +20,18 @@ const getScoreBgColor = (score: number): string => {
 };
 
 const UseCaseAnalysisModal: React.FC<UseCaseAnalysisModalProps> = ({ result, onClose }) => {
+  // Esc closes the modal
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleEscape);
+    return () => window.removeEventListener('keydown', handleEscape);
+  }, [onClose]);
+
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 animate-fade-in p-4" onClick={onClose}>
-      <div className="paper-modal w-full max-w-5xl max-h-[90vh] shadow-2xl flex flex-col" onClick={e => e.stopPropagation()}>
+      <div className="paper-modal w-full max-w-5xl max-h-[90dvh] shadow-2xl flex flex-col" onClick={e => e.stopPropagation()}>
         
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-white/10">
@@ -30,7 +39,7 @@ const UseCaseAnalysisModal: React.FC<UseCaseAnalysisModalProps> = ({ result, onC
             <h2 className="text-2xl font-bold text-text-light mb-1">Use Case Analysis</h2>
             <p className="text-teal-light text-sm">AI Visual Audit based on your specific project requirements</p>
           </div>
-          <button onClick={onClose} className="text-teal-light hover:text-text-light transition-colors">
+          <button onClick={onClose} className="text-teal-light hover:text-text-light transition-colors" aria-label="Close use case analysis">
             <CloseIcon className="w-6 h-6" />
           </button>
         </div>

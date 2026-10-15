@@ -1,4 +1,4 @@
-import React, { useState, useEffect, forwardRef, useLayoutEffect, useRef, useImperativeHandle } from 'react';
+import React, { useState, useEffect, forwardRef, useLayoutEffect, useRef, useImperativeHandle, useId } from 'react';
 import type { VariableAxis } from '../types';
 import { getAxisDescription } from '../utils/fontUtils';
 import { TooltipInfoIcon, LineChartIcon } from './Icons';
@@ -20,7 +20,23 @@ export interface FontPreviewHandle {
   getCaptureElement: () => HTMLDivElement | null;
 }
 
+// opentype.js returns axis names as localized objects ({ en: "Weight" }) for some
+// fonts and plain strings for others. Rendering the object crashes React.
+const getAxisName = (axis: { tag: string; name?: unknown }): string => {
+  const name = axis.name;
+  if (typeof name === 'string' && name) return name;
+  if (name && typeof name === 'object') {
+    const localized = name as Record<string, unknown>;
+    if (typeof localized.en === 'string' && localized.en) return localized.en;
+    const first = Object.values(localized).find((v): v is string => typeof v === 'string' && v.length > 0);
+    if (first) return first;
+  }
+  return axis.tag;
+};
+
 const FontPreview = forwardRef<FontPreviewHandle, FontPreviewProps>(({ file, googleFontName, initialSentence, isGeneratingSentence, onFontParsed, backgroundColor, textColor, onColorChange }, ref) => {
+  // Unique per instance: both columns render a FontPreview, so fixed ids would collide.
+  const uid = useId();
   const [fontFamily, setFontFamily] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [previewText, setPreviewText] = useState(initialSentence);
@@ -252,19 +268,19 @@ const FontPreview = forwardRef<FontPreviewHandle, FontPreviewProps>(({ file, goo
             <h3 className="text-lg font-bold text-accent">Font Preview</h3>
             <div className="flex items-center gap-2">
                 <div className="flex items-center gap-2">
-                    <label htmlFor="bg-color" className="text-xs text-secondary">BG</label>
-                    <input id="bg-color" type="color" value={backgroundColor} onChange={e => onColorChange('bg', e.target.value)} className="w-6 h-6 bg-transparent border-none rounded cursor-pointer" />
+                    <label htmlFor={`${uid}-bg-color`} className="text-xs text-secondary">BG</label>
+                    <input id={`${uid}-bg-color`} type="color" value={backgroundColor} onChange={e => onColorChange('bg', e.target.value)} className="w-6 h-6 bg-transparent border-none rounded cursor-pointer" />
                 </div>
                 <div className="flex items-center gap-2">
-                    <label htmlFor="text-color" className="text-xs text-secondary">Text</label>
-                    <input id="text-color" type="color" value={textColor} onChange={e => onColorChange('text', e.target.value)} className="w-6 h-6 bg-transparent border-none rounded cursor-pointer" />
+                    <label htmlFor={`${uid}-text-color`} className="text-xs text-secondary">Text</label>
+                    <input id={`${uid}-text-color`} type="color" value={textColor} onChange={e => onColorChange('text', e.target.value)} className="w-6 h-6 bg-transparent border-none rounded cursor-pointer" />
                 </div>
             </div>
         </div>
         
         <div className="relative">
-             <label htmlFor="preview-text-input" className="text-sm font-semibold text-secondary">Custom Preview Text</label>
-             <textarea id="preview-text-input" value={previewText} onChange={(e) => setPreviewText(e.target.value)} placeholder="Type your own preview text..."
+             <label htmlFor={`${uid}-preview-text`} className="text-sm font-semibold text-secondary">Custom Preview Text</label>
+             <textarea id={`${uid}-preview-text`} value={previewText} onChange={(e) => setPreviewText(e.target.value)} placeholder="Type your own preview text..."
                 className="mt-2 w-full bg-surface border border-border rounded-md p-2 text-primary focus:ring-2 focus:ring-accent focus:border-accent transition resize-none" rows={2} style={{ color: textColor, backgroundColor: 'var(--surface-color)' }}/>
             {isGeneratingSentence && (<div role="status" aria-live="polite" className="absolute bottom-2 right-2 text-xs text-secondary animate-pulse">Generating sentence...</div>)}
         </div>
@@ -272,12 +288,12 @@ const FontPreview = forwardRef<FontPreviewHandle, FontPreviewProps>(({ file, goo
         <div className="border-t border-b border-border py-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
                 <div>
-                    <label htmlFor="line-height-slider" className="flex justify-between text-sm font-semibold text-secondary"><span>Line Height</span><span className="font-mono text-accent">{lineHeight.toFixed(2)}</span></label>
-                    <input id="line-height-slider" type="range" min="0.8" max="3" step="0.05" value={lineHeight} onChange={(e) => setLineHeight(parseFloat(e.target.value))} className="w-full h-2 bg-surface rounded-lg appearance-none cursor-pointer accent-accent" aria-label="Adjust line height"/>
+                    <label htmlFor={`${uid}-line-height-slider`} className="flex justify-between text-sm font-semibold text-secondary"><span>Line Height</span><span className="font-mono text-accent">{lineHeight.toFixed(2)}</span></label>
+                    <input id={`${uid}-line-height-slider`} type="range" min="0.8" max="3" step="0.05" value={lineHeight} onChange={(e) => setLineHeight(parseFloat(e.target.value))} className="w-full h-2 bg-surface rounded-lg appearance-none cursor-pointer accent-accent" aria-label="Adjust line height"/>
                 </div>
                 <div>
-                    <label htmlFor="letter-spacing-slider" className="flex justify-between text-sm font-semibold text-secondary"><span>Letter Spacing</span><span className="font-mono text-accent">{letterSpacing.toFixed(3)} em</span></label>
-                    <input id="letter-spacing-slider" type="range" min="-0.1" max="0.5" step="0.005" value={letterSpacing} onChange={(e) => setLetterSpacing(parseFloat(e.target.value))} className="w-full h-2 bg-surface rounded-lg appearance-none cursor-pointer accent-accent" aria-label="Adjust letter spacing" />
+                    <label htmlFor={`${uid}-letter-spacing-slider`} className="flex justify-between text-sm font-semibold text-secondary"><span>Letter Spacing</span><span className="font-mono text-accent">{letterSpacing.toFixed(3)} em</span></label>
+                    <input id={`${uid}-letter-spacing-slider`} type="range" min="-0.1" max="0.5" step="0.005" value={letterSpacing} onChange={(e) => setLetterSpacing(parseFloat(e.target.value))} className="w-full h-2 bg-surface rounded-lg appearance-none cursor-pointer accent-accent" aria-label="Adjust letter spacing" />
                 </div>
             </div>
             {parsedFont && (
@@ -285,23 +301,23 @@ const FontPreview = forwardRef<FontPreviewHandle, FontPreviewProps>(({ file, goo
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
                         {weightAxis && (
                             <div className="md:col-span-2">
-                                <label htmlFor="weight-slider" className="flex justify-between text-sm font-semibold text-secondary"><span>Weight</span><span className="font-mono text-accent">{axisValues[weightAxis.tag]}</span></label>
-                                <input id="weight-slider" type="range" min={weightAxis.minValue} max={weightAxis.maxValue} step="1" value={axisValues[weightAxis.tag] || weightAxis.defaultValue} onChange={(e) => handleAxisChange(weightAxis.tag, parseFloat(e.target.value))} className="w-full h-2 bg-surface rounded-lg appearance-none cursor-pointer accent-accent mt-1" aria-label="Adjust font weight"/>
+                                <label htmlFor={`${uid}-weight-slider`} className="flex justify-between text-sm font-semibold text-secondary"><span>Weight</span><span className="font-mono text-accent">{axisValues[weightAxis.tag]}</span></label>
+                                <input id={`${uid}-weight-slider`} type="range" min={weightAxis.minValue} max={weightAxis.maxValue} step="1" value={axisValues[weightAxis.tag] || weightAxis.defaultValue} onChange={(e) => handleAxisChange(weightAxis.tag, parseFloat(e.target.value))} className="w-full h-2 bg-surface rounded-lg appearance-none cursor-pointer accent-accent mt-1" aria-label="Adjust font weight"/>
                             </div>
                         )}
                         {variableAxes.map(axis => (
                             <div key={axis.tag}>
-                                <label htmlFor={`${axis.tag}-slider`} className="flex justify-between items-center text-sm font-semibold text-secondary">
+                                <label htmlFor={`${uid}-${axis.tag}-slider`} className="flex justify-between items-center text-sm font-semibold text-secondary">
                                     <div className="flex items-center gap-1.5">
-                                        <span>{axis.name}</span>
+                                        <span>{getAxisName(axis)}</span>
                                         <div className="relative group flex items-center">
-                                            <TooltipInfoIcon tabIndex={0} className="w-4 h-4 text-secondary/70 cursor-help focus:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-full" aria-label={`More info about ${axis.name}`} />
+                                            <TooltipInfoIcon tabIndex={0} className="w-4 h-4 text-secondary/70 cursor-help focus:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-full" aria-label={`More info about ${getAxisName(axis)}`} />
                                             <div role="tooltip" className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max max-w-xs p-2 text-xs bg-background border border-border text-primary rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible group-focus-within:opacity-100 group-focus-within:visible transition-opacity duration-300 pointer-events-none z-10">{getAxisDescription(axis.tag)}</div>
                                         </div>
                                     </div>
                                     <span className="font-mono text-accent">{axisValues[axis.tag]}</span>
                                 </label>
-                                <input id={`${axis.tag}-slider`} type="range" min={axis.minValue} max={axis.maxValue} step="1" value={axisValues[axis.tag] || axis.defaultValue} onChange={(e) => handleAxisChange(axis.tag, parseFloat(e.target.value))} className="w-full h-2 bg-surface rounded-lg appearance-none cursor-pointer accent-accent mt-1" aria-label={`Adjust ${axis.name}`}/>
+                                <input id={`${uid}-${axis.tag}-slider`} type="range" min={axis.minValue} max={axis.maxValue} step="1" value={axisValues[axis.tag] || axis.defaultValue} onChange={(e) => handleAxisChange(axis.tag, parseFloat(e.target.value))} className="w-full h-2 bg-surface rounded-lg appearance-none cursor-pointer accent-accent mt-1" aria-label={`Adjust ${getAxisName(axis)}`}/>
                             </div>
                         ))}
                     </div>
